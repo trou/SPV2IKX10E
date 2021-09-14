@@ -1,0 +1,104 @@
+From 2f0af36d2dd9b1f7fcee8d5c8a81152d2d0b14e8 Mon Sep 17 00:00:00 2001
+From: "Matthias.Proske (BSH)" <Matthias.Proske@bshg.com>
+Date: Fri, 5 Jul 2019 17:41:34 +0200
+Subject: [PATCH] Add proprietary BSH DHCP option
+
+---
+ gdhcp/client.c | 32 ++++++++++++++++++++++++++++++++
+ gdhcp/common.c |  2 ++
+ gdhcp/common.h |  3 +++
+ 3 files changed, 37 insertions(+)
+
+diff --git a/gdhcp/client.c b/gdhcp/client.c
+index 6735778..eef84e7 100644
+--- a/gdhcp/client.c
++++ b/gdhcp/client.c
+@@ -47,6 +47,7 @@
+ #include "common.h"
+ #include "ipv4ll.h"
+ 
++
+ #define DISCOVER_TIMEOUT 5
+ #define DISCOVER_RETRIES 6
+ 
+@@ -1208,6 +1209,9 @@ GDHCPClient *g_dhcp_client_new(GDHCPType type,
+ 
+ 	*error = G_DHCP_CLIENT_ERROR_NONE;
+ 
++	/* BSH: we want to request BSH SMM Registry always */
++	g_dhcp_client_set_request(dhcp_client, DHCP_BSH_SMM_REGISTRY);
++
+ 	return dhcp_client;
+ 
+ error:
+@@ -2256,6 +2260,18 @@ static void get_request(GDHCPClient *dhcp_client, struct dhcp_packet *packet)
+ 	}
+ }
+ 
++
++static int bsh_send_smm_registry(const char *ip, const char *url)
++{
++	char cmd[255];
++	/* Call separate script to do make the actual response to that, use environmental variables */
++
++	snprintf(cmd, sizeof(cmd), "ip=%s bshsmmregistry=%s bsh-mes-register &", ip, url);
++	return system(cmd);
++}
++
++
++
+ static gboolean listener_event(GIOChannel *channel, GIOCondition condition,
+ 							gpointer user_data)
+ {
+@@ -2426,6 +2442,22 @@ static gboolean listener_event(GIOChannel *channel, GIOCondition condition,
+ 				dhcp_client->lease_available_cb(dhcp_client,
+ 					dhcp_client->lease_available_data);
+ 
++			/* BSH handle additional proprietary options */
++			option = dhcp_get_option(&packet, pkt_len, DHCP_BSH_SMM_REGISTRY);
++
++			if(option) {
++				/* Length of string is stored at option -1, as it is a byte, cannot be bigger than 255 */
++				unsigned int len = *(option-1);
++				char buf[len+1];			/* +1 for string termination */
++				memset(buf, 0, len+1);
++				memcpy(buf, option, len);
++
++				if(bsh_send_smm_registry(dhcp_client->assigned_ip, buf)) {
++					debug(dhcp_client, "Sending SMM Registry failed\n");
++				}
++
++			}
++
+ 			start_bound(dhcp_client);
+ 		} else if (*message_type == DHCPNAK) {
+ 			dhcp_client->retry_times = 0;
+diff --git a/gdhcp/common.c b/gdhcp/common.c
+index 6f81671..95c0a21 100644
+--- a/gdhcp/common.c
++++ b/gdhcp/common.c
+@@ -56,6 +56,7 @@ static const DHCPOption client_options[] = {
+ 	{ OPTION_U16,			0x39 }, /* max-size */
+ 	{ OPTION_STRING,		0x3c }, /* vendor */
+ 	{ OPTION_STRING,		0x3d }, /* client-id */
++	{ OPTION_STRING,		0xe1 }, /* BSH SMM Registry */
+ 	{ OPTION_STRING,		0xfc }, /* UNOFFICIAL proxy-pac */
+ 	{ OPTION_UNKNOWN,		0x00 },
+ };
+diff --git a/gdhcp/common.h b/gdhcp/common.h
+index 75abc18..5d765a1 100644
+--- a/gdhcp/common.h
++++ b/gdhcp/common.h
+@@ -106,6 +106,9 @@ struct dhcpv6_packet {
+ #define DHCP_MAX_SIZE		0x39
+ #define DHCP_VENDOR		0x3c
+ #define DHCP_CLIENT_ID		0x3d
++
++#define DHCP_BSH_SMM_REGISTRY	0xe1	/* BSH specific */
++
+ #define DHCP_END		0xff
+ 
+ #define OPT_CODE		0
+-- 
+2.17.1
+

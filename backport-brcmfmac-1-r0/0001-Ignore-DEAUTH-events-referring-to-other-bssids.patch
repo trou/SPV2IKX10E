@@ -1,0 +1,55 @@
+From b48bd59e7d78963e3c881d538d0d8b821e9b1962 Mon Sep 17 00:00:00 2001
+From: "Holesch, Simon (BSH)" <simon.holesch@bshg.com>
+Date: Wed, 6 May 2020 11:12:20 +0200
+Subject: [PATCH 1] Ignore DEAUTH events referring to other bssids
+
+If the STA receives a management frame from a non-associated device, it
+sends a Deauthentication frame to that device. The firmware then
+notifies the Kernel driver with a DAUTH event. The Kernel driver blindly
+forwards this event to the supplicant, ignoring the attached BSSID. The
+supplicant then assumes this event refers to the current connection and
+initiates a new connection, possibly to another AP.
+
+This issue was observed with Cisco APs, which sometimes led to multiple
+connection attempts and in turn to longer association times.
+
+This patch is a temporary fix, that drops the unwanted DEAUTH event in
+the Kernel driver.
+
+---
+ drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c | 6 ++++++
+ drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.h     | 1 +
+ 2 files changed, 7 insertions(+)
+
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+index 24e064e..9077345 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+@@ -6213,6 +6213,12 @@ brcmf_notify_connect_status(struct brcmf_if *ifp,
+ 	struct ieee80211_channel *chan;
+ 	s32 err = 0;
+ 
++	if ((e->event_code == BRCMF_E_DEAUTH) &&
++	    (e->reason == BRCMF_E_REASON_INVAL_CLASS_3)) {
++		brcmf_dbg(EVENT, "CLASS 3 Frame received from unassociated device, ignore\n");
++		return 0;
++	}
++
+ 	if ((e->event_code == BRCMF_E_DEAUTH) ||
+ 	    (e->event_code == BRCMF_E_DEAUTH_IND) ||
+ 	    (e->event_code == BRCMF_E_DISASSOC_IND) ||
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.h b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.h
+index 9ed8e63..adfe2b7 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.h
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/fweh.h
+@@ -160,6 +160,7 @@ enum brcmf_fweh_event_code {
+ #define BRCMF_E_REASON_DEAUTH			2
+ #define BRCMF_E_REASON_DISASSOC			3
+ #define BRCMF_E_REASON_BCNS_LOST		4
++#define BRCMF_E_REASON_INVAL_CLASS_3		7
+ #define BRCMF_E_REASON_MINTXRATE		9
+ #define BRCMF_E_REASON_TXFAIL			10
+ 
+-- 
+2.7.4
+

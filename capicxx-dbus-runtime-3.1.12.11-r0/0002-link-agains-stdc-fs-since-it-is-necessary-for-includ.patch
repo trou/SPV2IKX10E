@@ -1,0 +1,29 @@
+From 84a2bfd54bfbbe74d0335f7fb42ef0a4d84317ab Mon Sep 17 00:00:00 2001
+Message-Id: <84a2bfd54bfbbe74d0335f7fb42ef0a4d84317ab.1550490042.git.thorsten.klein@bshg.com>
+In-Reply-To: <67f147ba017fb4b30538dd5a27706178a3f76b38.1550490042.git.thorsten.klein@bshg.com>
+References: <67f147ba017fb4b30538dd5a27706178a3f76b38.1550490042.git.thorsten.klein@bshg.com>
+From: "Klein, Thorsten (BSH)" <thorsten.klein@bshg.com>
+Date: Mon, 18 Feb 2019 12:40:35 +0100
+Subject: [PATCH 2/2] link agains stdc++fs since it is necessary for
+ #include<filesystem>
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e98d655..6c8691e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -203,7 +203,7 @@ list(SORT MMHASH_SRCS)
+ # CommonAPI-DBus library
+ add_library(CommonAPI-DBus SHARED ${CAPIDB_SRCS} ${PUGIXML_SRCS} ${MMHASH_SRCS})
+ 
+-target_link_libraries(CommonAPI-DBus CommonAPI ${DBus_LIBRARIES})
++target_link_libraries(CommonAPI-DBus CommonAPI ${DBus_LIBRARIES} stdc++fs)
+ 
+ if (MSVC)
+     target_link_libraries(CommonAPI-DBus ws2_32 Rpcrt4)
+-- 
+2.7.4
+

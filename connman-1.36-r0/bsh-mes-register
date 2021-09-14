@@ -1,0 +1,61 @@
+#!/bin/sh
+
+set -e
+
+# This script is now used by both the IFP packages as well as by connman
+
+# This script is supposed to be called from both the busybox DHCP client udhcpc
+# and from connman opening a shell script.
+# DHCP options are passed as environment variables. The following variables are
+# expected:
+# - ip: The obtained IP
+# - bshsmmregistry: The BSH SMM Registry URL
+
+main() {
+    # The file name is misleading, but the name "Tracing ID" was created after
+    # that file name was defined
+    read tracing_id < /mnt/production_data/dmc_id
+    # Serial number is optional
+    read serial_num < /mnt/production_data/serial_number || true
+
+    echo "Registering SMM at \"$bshsmmregistry\"..." >&2
+    # Filter out empty strings in JSON, then POST it to the registry
+    jq 'del(.[] | select(. == ""))' << EOF |
+{
+    "SerialNumber":"$serial_num",
+    "IP":"${ip%/*}",
+    "TracingID":"$tracing_id"
+}
+EOF
+        tee -a /dev/stderr \
+        | curl_post "$bshsmmregistry"
+}
+
+curl_post() {
+    curl_json \
+            -X POST \
+            --header 'Content-Type: application/json' \
+            --data-binary '@-' \
+            "$@" \
+        > /dev/null
+}
+
+curl_json() {
+    { http_code=$(curl \
+        --output /dev/fd/3 \
+        --write-out "%{http_code}" \
+        --silent \
+        --show-error \
+        --verbose \
+        --max-time 30 \
+        --header 'Accept: application/json' \
+        "$@"
+    ); } 3>&1
+    return_code=$((http_code / 100))
+
+    if test $return_code -ne 2; then
+        return $return_code
+    fi
+}
+
+main "$@"

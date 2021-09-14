@@ -1,0 +1,12 @@
+configure-libtool.patch -p1
+fix-conflicting-rand.patch -p1
+ptest-paths.patch -p1
+uclibc_musl_translation.patch -p1
+allow-run-media-sdX-drive-mount-if-username-root.patch -p1
+0001-Remove-the-warning-about-deprecated-paths-in-schemas.patch -p1
+Enable-more-tests-while-cross-compiling.patch -p1
+gi-exclude.patch -p1
+0001-Install-gio-querymodules-as-libexec_PROGRAM.patch -p1
+0001-Do-not-ignore-return-value-of-write.patch -p1
+0002-tests-Ignore-y2k-warnings.patch -p1
+0001-Regenerate-the-vasnprintf-gnulib-module-imported-fil.patch -p1

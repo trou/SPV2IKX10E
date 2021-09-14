@@ -1,0 +1,24 @@
+From 8944c1d2f0280c013c1c178bdcedc95a82cb9765 Mon Sep 17 00:00:00 2001
+From: Matthias Proske <Matthias.Proske@bshg.com>
+Date: Tue, 26 Mar 2019 21:08:21 +0100
+Subject: [PATCH] add dependency for /var/log/journal mount on systemd journald
+
+---
+ units/systemd-journald.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/units/systemd-journald.service.in b/units/systemd-journald.service.in
+index df76fe4226..2641ce124c 100644
+--- a/units/systemd-journald.service.in
++++ b/units/systemd-journald.service.in
+@@ -14,6 +14,7 @@ DefaultDependencies=no
+ Requires=systemd-journald.socket
+ After=systemd-journald.socket systemd-journald-dev-log.socket systemd-journald-audit.socket syslog.socket
+ Before=sysinit.target
++RequiresMountsFor=/var/log/journal
+ 
+ [Service]
+ Type=notify
+-- 
+2.17.2
+

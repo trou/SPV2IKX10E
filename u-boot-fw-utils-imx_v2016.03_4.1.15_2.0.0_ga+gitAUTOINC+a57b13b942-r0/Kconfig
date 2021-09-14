@@ -1,0 +1,15 @@
+
+if TARGET_MX6BSHSMBCPU
+
+config SYS_BOARD
+	default "mx6bshsmbcpu"
+
+config SYS_VENDOR
+	default "bsh"
+
+config SYS_SOC
+	default "mx6"
+config SYS_CONFIG_NAME
+	default "mx6bshsmbxxxcpu"
+
+endif

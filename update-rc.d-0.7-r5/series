@@ -1,0 +1,3 @@
+add-verbose.patch -p1
+check-if-symlinks-are-valid.patch -p1
+fix-to-handle-priority-numbers-correctly.patch -p1

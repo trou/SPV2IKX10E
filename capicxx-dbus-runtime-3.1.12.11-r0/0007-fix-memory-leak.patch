@@ -1,0 +1,34 @@
+diff --git a/include/CommonAPI/DBus/DBusInputStream.hpp b/include/CommonAPI/DBus/DBusInputStream.hpp
+index 568dc4d..09b39bb 100644
+--- a/include/CommonAPI/DBus/DBusInputStream.hpp
++++ b/include/CommonAPI/DBus/DBusInputStream.hpp
+@@ -19,6 +19,7 @@
+ #include <string>
+ #include <vector>
+ #include <cstring>
++#include <memory>
+ 
+ #include <CommonAPI/Export.hpp>
+ #include <CommonAPI/InputStream.hpp>
+@@ -518,7 +519,7 @@ private:
+     char *begin_;
+     size_t current_;
+     size_t size_;
+-    CommonAPI::DBus::DBusError* exception_;
++    std::unique_ptr<CommonAPI::DBus::DBusError> exception_;
+     CommonAPI::DBus::DBusMessage message_;
+ 
+     std::vector<uint32_t> sizes_;
+diff --git a/src/CommonAPI/DBus/DBusInputStream.cpp b/src/CommonAPI/DBus/DBusInputStream.cpp
+index 1bede6f..5a9ca20 100644
+--- a/src/CommonAPI/DBus/DBusInputStream.cpp
++++ b/src/CommonAPI/DBus/DBusInputStream.cpp
+@@ -49,7 +49,7 @@ char *DBusInputStream::_readRaw(const size_t _size) {
+ }
+ 
+ void DBusInputStream::setError() {
+-    exception_ = new CommonAPI::DBus::DBusError();
++    exception_ = std::unique_ptr<CommonAPI::DBus::DBusError>(new CommonAPI::DBus::DBusError());
+ }
+ 
+ void DBusInputStream::pushPosition() {

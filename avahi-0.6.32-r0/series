@@ -1,0 +1,2 @@
+initscript.patch -p1
+avahi-fix-resource-unavaiable.patch -p1

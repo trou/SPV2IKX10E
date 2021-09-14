@@ -1,0 +1,8 @@
+add_shutdown.patch -p1
+nobash.patch -p1
+noshadow.patch -p1
+input.patch -p1
+disable-docs.patch -p1
+0001-change-default-login-for-functional-user-to-bin-fals.patch -p1
+0001-Base-Password-create-group-IDs-for-keys-and-certs.patch -p1
+0002-add-hccom-cofigs-group-to-base-passwd.patch -p1

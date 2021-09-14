@@ -1,0 +1,4 @@
+0001-Remove-error-message-getting-from-deactivation-of-te.patch -p1
+0002-WiFi-resolve-disconnect.patch -p1
+0003-WiFi-driver-Add-suspend-force-pm-2-patch.patch -p1
+0001-Ignore-DEAUTH-events-referring-to-other-bssids.patch -p1

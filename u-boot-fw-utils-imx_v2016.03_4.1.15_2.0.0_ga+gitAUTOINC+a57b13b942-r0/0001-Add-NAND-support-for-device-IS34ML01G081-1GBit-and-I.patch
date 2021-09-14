@@ -1,0 +1,54 @@
+From 5e26a831678eb6133fdfc5d0d6f8a56deac8fb46 Mon Sep 17 00:00:00 2001
+From: "Bode, Michael (BSH)" <Michael.Bode@bshg.com>
+Date: Fri, 20 Jul 2018 09:35:11 +0200
+Subject: [PATCH] Add NAND support for device IS34ML01G081(1GBit) and
+ IS34ML02G081(2GBit)
+
+---
+ drivers/mtd/nand/nand_ids.c | 10 ++++++++++
+ include/linux/mtd/nand.h    |  1 +
+ 2 files changed, 11 insertions(+)
+
+diff --git a/drivers/mtd/nand/nand_ids.c b/drivers/mtd/nand/nand_ids.c
+index fdd0074..c329ac2 100644
+--- a/drivers/mtd/nand/nand_ids.c
++++ b/drivers/mtd/nand/nand_ids.c
+@@ -41,6 +41,15 @@ struct nand_flash_dev nand_flash_ids[] = {
+ 	 * listed by full ID. We list them first so that we can easily identify
+ 	 * the most specific match.
+ 	 */
++	{"IS34ML01G081 1G 3.3V 8-bit",
++		{ .id = {0xC8, 0xD1, 0x80, 0x95, 0x42, 0x7F, 0x7F, 0x7F} },
++		  SZ_2K, SZ_128, SZ_128K, 0, 8, 64, NAND_ECC_INFO(8, SZ_512),
++		  2 },
++	{"IS34ML02G081 2G 3.3V 8-bit",
++		{ .id = {0xC8, 0xDA, 0x90, 0x95, 0x46, 0x7F, 0x7F, 0x7F} },
++		  SZ_2K, SZ_256, SZ_128K, 0, 8, 64, NAND_ECC_INFO(8, SZ_512),
++		  2 },
++
+ 	{"TC58NVG2S0F 4G 3.3V 8-bit",
+ 		{ .id = {0x98, 0xdc, 0x90, 0x26, 0x76, 0x15, 0x01, 0x08} },
+ 		  SZ_4K, SZ_512, SZ_256K, 0, 8, 224, NAND_ECC_INFO(4, SZ_512) },
+@@ -189,6 +198,7 @@ struct nand_manufacturers nand_manuf_ids[] = {
+ 	{NAND_MFR_SANDISK, "SanDisk"},
+ 	{NAND_MFR_INTEL, "Intel"},
+ 	{NAND_MFR_ATO, "ATO"},
++	{NAND_MFR_ISSI, "ISSI"},
+ 	{0x0, "Unknown"}
+ };
+ 
+diff --git a/include/linux/mtd/nand.h b/include/linux/mtd/nand.h
+index f7ec18c..ebaba8e 100644
+--- a/include/linux/mtd/nand.h
++++ b/include/linux/mtd/nand.h
+@@ -758,6 +758,7 @@ struct nand_chip {
+ #define NAND_MFR_SANDISK	0x45
+ #define NAND_MFR_INTEL		0x89
+ #define NAND_MFR_ATO		0x9b
++#define NAND_MFR_ISSI		0xc8
+ 
+ /* The maximum expected count of bytes in the NAND ID sequence */
+ #define NAND_MAX_ID_LEN 8
+-- 
+2.7.4
+

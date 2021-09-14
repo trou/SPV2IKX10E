@@ -1,0 +1,41 @@
+From 3091775b494b490ce6d77734ca66297caa6f9fbc Mon Sep 17 00:00:00 2001
+From: Matthias Proske <Matthias.Proske@bshg.com>
+Date: Sat, 27 Jul 2019 01:46:30 +0200
+Subject: [PATCH] do reset on non-recoverable issue
+
+When we have NAND read errors, only a reset helps.
+Of course this hides the actual cause, but currently we wait for 30
+seconds and do the reset anyway.
+This might be an acceptable solution for the first products.
+---
+ drivers/mtd/nand/mxs_nand.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/mtd/nand/mxs_nand.c b/drivers/mtd/nand/mxs_nand.c
+index 20ecb56..4dfe498 100644
+--- a/drivers/mtd/nand/mxs_nand.c
++++ b/drivers/mtd/nand/mxs_nand.c
+@@ -14,6 +14,7 @@
+  */
+ 
+ #include <common.h>
++#include <command.h>
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/nand.h>
+ #include <linux/types.h>
+@@ -417,8 +418,11 @@ static void mxs_nand_cmd_ctrl(struct mtd_info *mtd, int data, unsigned int ctrl)
+ 
+ 	/* Execute the DMA chain. */
+ 	ret = mxs_dma_go(channel);
+-	if (ret)
++	if (ret) {
+ 		printf("MXS NAND: Error sending command\n");
++		printf("This is proven to be fatal, only a reset helps\n");
++		do_reset(NULL, 0, 0, NULL);
++	}
+ 
+ 	mxs_nand_return_dma_descs(nand_info);
+ 
+-- 
+2.21.0
+

@@ -1,0 +1,152 @@
+From f3a6782c5bc2475200c7491dce0d575a03917383 Mon Sep 17 00:00:00 2001
+Message-Id: <f3a6782c5bc2475200c7491dce0d575a03917383.1533818645.git.thomas.arens@bshg.com>
+From: "Arens, Thomas (BSH)" <thomas.arens@bshg.com>
+Date: Thu, 9 Aug 2018 14:43:04 +0200
+Subject: [PATCH] - added the possibility to load multiple INI files from the
+ folder /etc/commonapi-dbus.d or the folder provided by the environment
+ variable COMMONAPI_DBUS_CONFIG (if it is a folder).     Priority is as
+ follows:     1. folder definded by COMMONAPI_DBUS_CONFIG     2. file in the
+ current folder     3. file definded by COMMONAPI_DBUS_CONFIG     4. folder
+ /etc/commonapi-dbus.d     5. file /etc/commonapi-dbus.ini - added the
+ capability to use ; for comments
+
+---
+ src/CommonAPI/DBus/DBusAddressTranslator.cpp | 89 ++++++++++++++++++++--------
+ 1 file changed, 65 insertions(+), 24 deletions(-)
+
+diff --git a/src/CommonAPI/DBus/DBusAddressTranslator.cpp b/src/CommonAPI/DBus/DBusAddressTranslator.cpp
+index 643ea2e..b7523bb 100644
+--- a/src/CommonAPI/DBus/DBusAddressTranslator.cpp
++++ b/src/CommonAPI/DBus/DBusAddressTranslator.cpp
+@@ -18,11 +18,20 @@
+ #include <CommonAPI/Runtime.hpp>
+ #include <CommonAPI/DBus/DBusAddressTranslator.hpp>
+ 
++#if defined __cpp_lib_filesystem
++#include <filesystem>
++namespace fs_ns = std::filesystem;
++#else
++#include <experimental/filesystem>
++namespace fs_ns = std::experimental::filesystem;
++#endif
++
+ namespace CommonAPI {
+ namespace DBus {
+ 
+ const char *COMMONAPI_DBUS_DEFAULT_CONFIG_FILE = "commonapi-dbus.ini";
+ const char *COMMONAPI_DBUS_DEFAULT_CONFIG_FOLDER = "/etc/";
++const char *COMMONAPI_DBUS_DEFAULT_MULTIPLE_CONFIGS_FOLDER = "/etc/commonapi-dbus.d";
+ 
+ 
+ std::shared_ptr<DBusAddressTranslator> DBusAddressTranslator::get() {
+@@ -39,19 +48,37 @@ DBusAddressTranslator::DBusAddressTranslator()
+ 
+ void
+ DBusAddressTranslator::init() {
+-    // Determine default configuration file
++    // Determine default configuration file/folder
++    defaultConfig_ = COMMONAPI_DBUS_DEFAULT_MULTIPLE_CONFIGS_FOLDER;
++
+     const char *config = getenv("COMMONAPI_DBUS_CONFIG");
+     if (config) {
+         defaultConfig_ = config;
+-        struct stat s;
+-        if (stat(defaultConfig_.c_str(), &s) != 0) {
+-            COMMONAPI_ERROR("Failed to load ini file passed via "
++    }
++
++    // Check if there is a configuration folder:
++    if (fs_ns::exists(defaultConfig_)
++        && fs_ns::is_directory(defaultConfig_)
++        && !fs_ns::is_empty(defaultConfig_))
++    {
++
++    }
++    else
++    {
++        if (config)
++        {
++            struct stat s;
++            if (stat(defaultConfig_.c_str(), &s) != 0) {
++                COMMONAPI_ERROR("Failed to load ini file passed via "
+                     "COMMONAPI_DBUS_CONFIG environment: ", defaultConfig_);
++            }
++        }
++        else
++        {
++            defaultConfig_ = COMMONAPI_DBUS_DEFAULT_CONFIG_FOLDER;
++            defaultConfig_ += "/";
++            defaultConfig_ += COMMONAPI_DBUS_DEFAULT_CONFIG_FILE;
+         }
+-    } else {
+-        defaultConfig_ = COMMONAPI_DBUS_DEFAULT_CONFIG_FOLDER;
+-        defaultConfig_ += "/";
+-        defaultConfig_ += COMMONAPI_DBUS_DEFAULT_CONFIG_FILE;
+     }
+ 
+     (void)readConfiguration();
+@@ -230,31 +257,45 @@ DBusAddressTranslator::insert(
+ 
+ bool
+ DBusAddressTranslator::readConfiguration() {
++    IniFileReader reader;
++    // Reading a complete folder:
++    if (fs_ns::is_directory(defaultConfig_))
++    {
++        for (auto &dirEntry : fs_ns::directory_iterator(defaultConfig_))
++        {
++            if (!fs_ns::is_directory(dirEntry.path().string()))
++            {
++                reader.load(dirEntry.path().string());
++            }
++        }
++    }
++    else
++    {
+ #define MAX_PATH_LEN 255
+-    std::string config;
+-    bool tryLoadConfig(true);
+-    char currentDirectory[MAX_PATH_LEN];
++        std::string config;
++        bool tryLoadConfig(true);
++        char currentDirectory[MAX_PATH_LEN];
+ #ifdef _WIN32
+-    if (GetCurrentDirectory(MAX_PATH_LEN, currentDirectory)) {
++        if (GetCurrentDirectory(MAX_PATH_LEN, currentDirectory)) {
+ #else
+-    if (getcwd(currentDirectory, MAX_PATH_LEN)) {
++        if (getcwd(currentDirectory, MAX_PATH_LEN)) {
+ #endif
+-        config = currentDirectory;
+-        config += "/";
+-        config += COMMONAPI_DBUS_DEFAULT_CONFIG_FILE;
++            config = currentDirectory;
++            config += "/";
++            config += COMMONAPI_DBUS_DEFAULT_CONFIG_FILE;
+ 
+-        struct stat s;
+-        if (stat(config.c_str(), &s) != 0) {
+-            config = defaultConfig_;
++            struct stat s;
+             if (stat(config.c_str(), &s) != 0) {
+-                tryLoadConfig = false;
++                config = defaultConfig_;
++                if (stat(config.c_str(), &s) != 0) {
++                    tryLoadConfig = false;
++                }
+             }
+         }
+-    }
+ 
+-    IniFileReader reader;
+-    if (tryLoadConfig && !reader.load(config))
+-        return false;
++        if (tryLoadConfig && !reader.load(config))
++            return false;
++    }
+ 
+     for (auto itsMapping : reader.getSections()) {
+         if(itsMapping.first == "segments") {
+-- 
+2.7.4
+

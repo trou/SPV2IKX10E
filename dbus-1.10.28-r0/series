@@ -1,0 +1,7 @@
+tmpdir.patch -p1
+os-test.patch -p1
+clear-guid_from_server-if-send_negotiate_unix_f.patch -p1
+0001-configure.ac-explicitely-check-stdint.h.patch -p1
+capi-dbus-add-send-with-reply-set-notify.patch -p1
+capi-dbus-add-support-for-custom-marshalling.patch -p1
+capi-dbus-correct-dbus-connection-block-pending-call.patch -p1

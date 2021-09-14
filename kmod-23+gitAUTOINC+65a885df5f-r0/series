@@ -1,0 +1,2 @@
+avoid_parallel_tests.patch -p1
+fix-O_CLOEXEC.patch -p1

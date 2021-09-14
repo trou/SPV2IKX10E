@@ -1,0 +1,94 @@
+From 6b487380bae2b1766f3557cec6f7029d01586c13 Mon Sep 17 00:00:00 2001
+From: Wolfgang Birkner <wolfgang.birkner@bshg.com>
+Date: Thu, 19 Sep 2019 10:04:22 +0200
+Subject: [PATCH] Add Boot Count Reset
+
+---
+ arch/arm/imx-common/cmd_bmode.c |  5 ++++
+ cmd/Makefile                    |  1 +
+ cmd/boot_count.c                | 45 +++++++++++++++++++++++++++++++++
+ 3 files changed, 51 insertions(+)
+ create mode 100644 cmd/boot_count.c
+
+diff --git a/arch/arm/imx-common/cmd_bmode.c b/arch/arm/imx-common/cmd_bmode.c
+index 841b1d3..9b1c85d 100644
+--- a/arch/arm/imx-common/cmd_bmode.c
++++ b/arch/arm/imx-common/cmd_bmode.c
+@@ -72,6 +72,11 @@ static int do_boot_mode(cmd_tbl_t *cmdtp, int flag, int argc,
+ 		reset_requested = 0;
+ 	}
+ 
++#ifdef CONFIG_BOOTCOUNT_LIMIT
++	/* Reset the boot count value to ensure a correct boot after flashing */
++	bootcount_store(0);
++#endif /* CONFIG_BOOTCOUNT_LIMIT */
++
+ 	boot_mode_apply(p->cfg_val);
+ 	if (reset_requested && p->cfg_val)
+ 		do_reset(NULL, 0, 0, NULL);
+diff --git a/cmd/Makefile b/cmd/Makefile
+index 03f7e0a..8930a0f 100644
+--- a/cmd/Makefile
++++ b/cmd/Makefile
+@@ -160,6 +160,7 @@ endif
+ endif # CONFIG_SPL_BUILD
+ 
+ obj-$(CONFIG_CMD_BLOB) += blob.o
++obj-$(CONFIG_BOOTCOUNT_LIMIT) += boot_count.o
+ 
+ # core command
+ obj-y += nvedit.o
+diff --git a/cmd/boot_count.c b/cmd/boot_count.c
+new file mode 100644
+index 0000000..24e8768
+--- /dev/null
++++ b/cmd/boot_count.c
+@@ -0,0 +1,45 @@
++/*------------------------------------------------------------------------------
++ Copyright 2018 BSH Hausgeraete GmbH
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are met:
++
++ 1. Redistributions of source code must retain the above copyright notice,
++ this list of conditions and the following disclaimer.
++
++ 2. Redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution.
++
++ 3. Neither the name of the copyright holder nor the names of its
++ contributors may be used to endorse or promote products derived from this
++ software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ POSSIBILITY OF SUCH DAMAGE.
++ ------------------------------------------------------------------------------*/
++#include <common.h>
++#include <command.h>
++
++static int do_bcount_reset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++	/* Reset the boot count value to 0 */
++	bootcount_store(0);
++
++	return 0;
++}
++
++U_BOOT_CMD(
++	bcount_reset, 1, 0, do_bcount_reset,
++	"Reset the boot counter",
++	""
++);
+-- 
+2.17.1
+

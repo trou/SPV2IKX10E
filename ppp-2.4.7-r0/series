@@ -1,0 +1,7 @@
+makefile.patch -p1
+cifdefroute.patch -p1
+pppd-resolv-varrun.patch -p1
+makefile-remove-hard-usr-reference.patch -p1
+copts.patch -p1
+0001-ppp-Fix-compilation-errors-in-Makefile.patch -p1
+fix-CVE-2015-3310.patch -p1

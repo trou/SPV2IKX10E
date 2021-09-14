@@ -1,0 +1,51 @@
+From 2235d0742c228d5896bcda4ceee7731f2782dce7 Mon Sep 17 00:00:00 2001
+From: "Matthias.Proske (BSH)" <Matthias.Proske@bshg.com>
+Date: Thu, 6 Jun 2019 16:29:29 +0200
+Subject: [PATCH] change default login for functional user to /bin/false
+
+---
+ passwd.master | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/passwd.master b/passwd.master
+index e1c32ff..7ff123c 100644
+--- a/passwd.master
++++ b/passwd.master
+@@ -1,18 +1,18 @@
+ root::0:0:root:/root:/bin/sh
+-daemon:*:1:1:daemon:/usr/sbin:/bin/sh
+-bin:*:2:2:bin:/bin:/bin/sh
+-sys:*:3:3:sys:/dev:/bin/sh
++daemon:*:1:1:daemon:/usr/sbin:/bin/false
++bin:*:2:2:bin:/bin:/bin/false
++sys:*:3:3:sys:/dev:/bin/false
+ sync:*:4:65534:sync:/bin:/bin/sync
+-games:*:5:60:games:/usr/games:/bin/sh
+-man:*:6:12:man:/var/cache/man:/bin/sh
+-lp:*:7:7:lp:/var/spool/lpd:/bin/sh
+-mail:*:8:8:mail:/var/mail:/bin/sh
+-news:*:9:9:news:/var/spool/news:/bin/sh
+-uucp:*:10:10:uucp:/var/spool/uucp:/bin/sh
+-proxy:*:13:13:proxy:/bin:/bin/sh
+-www-data:*:33:33:www-data:/var/www:/bin/sh
+-backup:*:34:34:backup:/var/backups:/bin/sh
+-list:*:38:38:Mailing List Manager:/var/list:/bin/sh
+-irc:*:39:39:ircd:/var/run/ircd:/bin/sh
+-gnats:*:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/bin/sh
+-nobody:*:65534:65534:nobody:/nonexistent:/bin/sh
++games:*:5:60:games:/usr/games:/bin/false
++man:*:6:12:man:/var/cache/man:/bin/false
++lp:*:7:7:lp:/var/spool/lpd:/bin/false
++mail:*:8:8:mail:/var/mail:/bin/false
++news:*:9:9:news:/var/spool/news:/bin/false
++uucp:*:10:10:uucp:/var/spool/uucp:/bin/false
++proxy:*:13:13:proxy:/bin:/bin/false
++www-data:*:33:33:www-data:/var/www:/bin/false
++backup:*:34:34:backup:/var/backups:/bin/false
++list:*:38:38:Mailing List Manager:/var/list:/bin/false
++irc:*:39:39:ircd:/var/run/ircd:/bin/false
++gnats:*:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/bin/false
++nobody:*:65534:65534:nobody:/nonexistent:/bin/false
+-- 
+2.17.1
+

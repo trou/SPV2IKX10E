@@ -1,0 +1,351 @@
+From 303713eb010e0b59d73f5d6427ef24f1075700fd Mon Sep 17 00:00:00 2001
+From: "Holesch, Simon (BSH)" <simon.holesch@bshg.com>
+Date: Thu, 16 Jul 2020 19:06:13 +0200
+Subject: [PATCH 1/2] Make DHCP client timeouts suspend aware
+
+The glib timeout uses CLOCK_MONOTONIC, which is paused during suspend on
+Linux and is therefore unfit for network timeouts. This patch introduces
+timeouts based on CLOCK_BOOTTIME_ALARM, which wakes the system on
+timeout.
+---
+ gdhcp/client.c         | 184 ++++++++++++++++++++++++++++++++++++++-----------
+ src/connman.service.in |   2 +-
+ 2 files changed, 143 insertions(+), 43 deletions(-)
+
+diff --git a/gdhcp/client.c b/gdhcp/client.c
+index 4933d8c..b7192ce 100644
+--- a/gdhcp/client.c
++++ b/gdhcp/client.c
+@@ -33,6 +33,7 @@
+ #include <arpa/inet.h>
+ #include <sys/time.h>
+ #include <resolv.h>
++#include <sys/timerfd.h>
+ 
+ #include <netpacket/packet.h>
+ #include <netinet/if_ether.h>
+@@ -42,6 +43,7 @@
+ #include <linux/filter.h>
+ 
+ #include <glib.h>
++#include <glib-unix.h>
+ 
+ #include "gdhcp.h"
+ #include "common.h"
+@@ -159,6 +161,12 @@ struct _GDHCPClient {
+ 	bool request_bcast;
+ };
+ 
++typedef struct {
++	int fd;
++	GSourceFunc callback;
++	gpointer data;
++} TimeoutUserData;
++
+ static inline void debug(GDHCPClient *client, const char *format, ...)
+ {
+ 	char str[256];
+@@ -175,6 +183,100 @@ static inline void debug(GDHCPClient *client, const char *format, ...)
+ 	va_end(ap);
+ }
+ 
++static gboolean on_timerfd_timeout(gint fd,
++					GIOCondition condition,
++					gpointer data)
++{
++	(void)fd;
++	(void)condition;
++	TimeoutUserData *user_data = (TimeoutUserData *)data;
++	return user_data->callback(user_data->data);
++}
++
++static void on_timerfd_destroy(gpointer data)
++{
++	TimeoutUserData *user_data = (TimeoutUserData *)data;
++	close(user_data->fd);
++	free(user_data);
++}
++
++static guint timeout_start_timespec(GDHCPClient *dhcp_client,
++					gint priority,
++					struct timespec *interval,
++					GSourceFunc function,
++					gpointer data)
++{
++	TimeoutUserData *user_data = g_try_malloc(sizeof(TimeoutUserData));
++	if (user_data == NULL) {
++		return 0;
++	}
++	user_data->callback = function;
++	user_data->data = data;
++
++	/* CLOCK_BOOTTIME_ALARM continues to run while the system is suspended and
++	 * wakes it up on timeout. The glib timeout uses CLOCK_MONOTONIC, which is
++	 * paused during suspend on Linux and is therefore unfit for network
++	 * timeouts. */
++	user_data->fd = timerfd_create(CLOCK_BOOTTIME_ALARM,
++						TFD_NONBLOCK | TFD_CLOEXEC);
++	if (user_data->fd == -1) {
++		debug(dhcp_client, "Error creating timerfd: %s", strerror(errno));
++		free(user_data);
++		return 0;
++	}
++
++	struct itimerspec timeout = {
++		.it_value = *interval,
++		.it_interval = *interval,
++	};
++	int flags = 0;
++	struct itimerspec *old_value = NULL;
++	int err = timerfd_settime(user_data->fd, flags, &timeout, old_value);
++	if (err) {
++		debug(dhcp_client, "Error setting timerfd timeout: %s",
++				strerror(errno));
++		close(user_data->fd);
++		free(user_data);
++		return 0;
++	}
++
++	/* The file descriptor returned by timerfd_create can be polled and becomes
++	 * readable on timeout. Add the fd to the glib event loop. */
++	guint id = g_unix_fd_add_full(priority, user_data->fd, G_IO_IN,
++				on_timerfd_timeout, user_data, on_timerfd_destroy);
++	if (id == 0) {
++		debug(dhcp_client, "Error adding timerfd to event loop");
++		close(user_data->fd);
++		free(user_data);
++	}
++	return id;
++}
++
++static guint timeout_start_seconds(GDHCPClient *dhcp_client,
++						gint priority,
++						guint32 interval,
++						GSourceFunc function,
++						gpointer data)
++{
++	struct timespec timeout = { .tv_sec = interval };
++	return timeout_start_timespec(dhcp_client, priority, &timeout,
++			function, data);
++}
++
++static guint timeout_start_ms(GDHCPClient *dhcp_client,
++						gint priority,
++						guint32 interval,
++						GSourceFunc function,
++						gpointer data)
++{
++	struct timespec timeout = {
++		.tv_sec = interval / 1000,
++		.tv_nsec = (long)(interval % 1000) * 1000000,
++	};
++	return timeout_start_timespec(dhcp_client, priority, &timeout,
++			function, data);
++}
++
+ /* Initialize the packet with the proper defaults */
+ static void init_packet(GDHCPClient *dhcp_client, gpointer pkt, char type)
+ {
+@@ -562,11 +664,11 @@ static gboolean send_probe_packet(gpointer dhcp_data)
+ 	} else
+ 		timeout = (ANNOUNCE_WAIT * 1000);
+ 
+-	dhcp_client->timeout = g_timeout_add_full(G_PRIORITY_HIGH,
++	dhcp_client->timeout = timeout_start_ms(dhcp_client,
++						 G_PRIORITY_HIGH,
+ 						 timeout,
+ 						 ipv4ll_probe_timeout,
+-						 dhcp_client,
+-						 NULL);
++						 dhcp_client);
+ 	return FALSE;
+ }
+ 
+@@ -590,19 +692,19 @@ static gboolean send_announce_packet(gpointer dhcp_data)
+ 
+ 	if (dhcp_client->state == IPV4LL_DEFEND) {
+ 		dhcp_client->timeout =
+-			g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++			timeout_start_seconds(dhcp_client,
++						G_PRIORITY_HIGH,
+ 						DEFEND_INTERVAL,
+ 						ipv4ll_defend_timeout,
+-						dhcp_client,
+-						NULL);
++						dhcp_client);
+ 		return TRUE;
+ 	} else
+ 		dhcp_client->timeout =
+-			g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++			timeout_start_seconds(dhcp_client,
++						G_PRIORITY_HIGH,
+ 						ANNOUNCE_INTERVAL,
+ 						ipv4ll_announce_timeout,
+-						dhcp_client,
+-						NULL);
++						dhcp_client);
+ 	return TRUE;
+ }
+ 
+@@ -1383,11 +1485,11 @@ static void ipv4ll_start(GDHCPClient *dhcp_client)
+ 	timeout = ipv4ll_random_delay_ms(PROBE_WAIT);
+ 
+ 	dhcp_client->retry_times++;
+-	dhcp_client->timeout = g_timeout_add_full(G_PRIORITY_HIGH,
++	dhcp_client->timeout = timeout_start_ms(dhcp_client,
++						G_PRIORITY_HIGH,
+ 						timeout,
+ 						send_probe_packet,
+-						dhcp_client,
+-						NULL);
++						dhcp_client);
+ }
+ 
+ static void ipv4ll_stop(GDHCPClient *dhcp_client)
+@@ -1469,11 +1571,11 @@ static int ipv4ll_recv_arp_packet(GDHCPClient *dhcp_client)
+ 		/*restart whole state machine*/
+ 		dhcp_client->retry_times++;
+ 		dhcp_client->timeout =
+-			g_timeout_add_full(G_PRIORITY_HIGH,
++			timeout_start_ms(dhcp_client,
++					G_PRIORITY_HIGH,
+ 					ipv4ll_random_delay_ms(PROBE_WAIT),
+ 					send_probe_packet,
+-					dhcp_client,
+-					NULL);
++					dhcp_client);
+ 	}
+ 	/* Here we got a lot of conflicts, RFC3927 states that we have
+ 	 * to wait RATE_LIMIT_INTERVAL before retrying,
+@@ -1618,11 +1720,11 @@ static void start_request(GDHCPClient *dhcp_client)
+ 
+ 	send_request(dhcp_client);
+ 
+-	dhcp_client->timeout = g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++	dhcp_client->timeout = timeout_start_seconds(dhcp_client,
++							G_PRIORITY_HIGH,
+ 							REQUEST_TIMEOUT,
+ 							request_timeout,
+-							dhcp_client,
+-							NULL);
++							dhcp_client);
+ }
+ 
+ static uint32_t get_lease(struct dhcp_packet *packet)
+@@ -1693,11 +1795,11 @@ static gboolean continue_rebound(gpointer user_data)
+ 	if (dhcp_client->T2 > 60) {
+ 		dhcp_get_random(&rand);
+ 		dhcp_client->t2_timeout =
+-			g_timeout_add_full(G_PRIORITY_HIGH,
++			timeout_start_ms(dhcp_client,
++					G_PRIORITY_HIGH,
+ 					dhcp_client->T2 * 1000 + (rand % 2000) - 1000,
+ 					continue_rebound,
+-					dhcp_client,
+-					NULL);
++					dhcp_client);
+ 	}
+ 
+ 	return FALSE;
+@@ -1740,11 +1842,11 @@ static gboolean continue_renew (gpointer user_data)
+ 
+ 	if (dhcp_client->T1 > 60) {
+ 		dhcp_get_random(&rand);
+-		dhcp_client->t1_timeout = g_timeout_add_full(G_PRIORITY_HIGH,
++		dhcp_client->t1_timeout = timeout_start_ms(dhcp_client,
++				G_PRIORITY_HIGH,
+ 				dhcp_client->T1 * 1000 + (rand % 2000) - 1000,
+ 				continue_renew,
+-				dhcp_client,
+-				NULL);
++				dhcp_client);
+ 	}
+ 
+ 	return FALSE;
+@@ -1782,20 +1884,20 @@ static void start_bound(GDHCPClient *dhcp_client)
+ 	dhcp_client->T2 = dhcp_client->lease_seconds * 0.875;
+ 	dhcp_client->expire = dhcp_client->lease_seconds;
+ 
+-	dhcp_client->t1_timeout = g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++	dhcp_client->t1_timeout = timeout_start_seconds(dhcp_client,
++					G_PRIORITY_HIGH,
+ 					dhcp_client->T1,
+-					start_renew, dhcp_client,
+-							NULL);
++					start_renew, dhcp_client);
+ 
+-	dhcp_client->t2_timeout = g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++	dhcp_client->t2_timeout = timeout_start_seconds(dhcp_client,
++					G_PRIORITY_HIGH,
+ 					dhcp_client->T2,
+-					start_rebound, dhcp_client,
+-							NULL);
++					start_rebound, dhcp_client);
+ 
+-	dhcp_client->lease_timeout= g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++	dhcp_client->lease_timeout= timeout_start_seconds(dhcp_client,
++					G_PRIORITY_HIGH,
+ 					dhcp_client->expire,
+-					start_expire, dhcp_client,
+-							NULL);
++					start_expire, dhcp_client);
+ }
+ 
+ static gboolean restart_dhcp_timeout(gpointer user_data)
+@@ -2464,11 +2566,10 @@ static gboolean listener_event(GIOChannel *channel, GIOCondition condition,
+ 
+ 			remove_timeouts(dhcp_client);
+ 
+-			dhcp_client->timeout = g_timeout_add_seconds_full(
++			dhcp_client->timeout = timeout_start_seconds(dhcp_client,
+ 							G_PRIORITY_HIGH, 3,
+ 							restart_dhcp_timeout,
+-							dhcp_client,
+-							NULL);
++							dhcp_client);
+ 		}
+ 
+ 		break;
+@@ -2885,21 +2986,20 @@ int g_dhcp_client_start(GDHCPClient *dhcp_client, const char *last_address)
+ 		dhcp_client->state = REBOOTING;
+ 		send_request(dhcp_client);
+ 
+-		dhcp_client->timeout = g_timeout_add_seconds_full(
++		dhcp_client->timeout = timeout_start_seconds(dhcp_client,
+ 								G_PRIORITY_HIGH,
+ 								REQUEST_TIMEOUT,
+ 								reboot_timeout,
+-								dhcp_client,
+-								NULL);
++								dhcp_client);
+ 		return 0;
+ 	}
+ 	send_discover(dhcp_client, addr);
+ 
+-	dhcp_client->timeout = g_timeout_add_seconds_full(G_PRIORITY_HIGH,
++	dhcp_client->timeout = timeout_start_seconds(dhcp_client,
++							G_PRIORITY_HIGH,
+ 							DISCOVER_TIMEOUT,
+ 							discover_timeout,
+-							dhcp_client,
+-							NULL);
++							dhcp_client);
+ 	return 0;
+ }
+ 
+diff --git a/src/connman.service.in b/src/connman.service.in
+index 9f5c10f..59c4d85 100644
+--- a/src/connman.service.in
++++ b/src/connman.service.in
+@@ -13,7 +13,7 @@ BusName=net.connman
+ Restart=on-failure
+ ExecStart=@sbindir@/connmand -n
+ StandardOutput=null
+-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_SYS_TIME CAP_SYS_MODULE
++CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW CAP_SYS_TIME CAP_SYS_MODULE CAP_WAKE_ALARM
+ ProtectHome=true
+ ProtectSystem=full
+ 
+-- 
+2.7.4
+

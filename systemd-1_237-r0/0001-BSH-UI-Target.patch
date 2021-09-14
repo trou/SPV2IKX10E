@@ -1,0 +1,53 @@
+From 65b159d70890aa4c27973e36d35f5bbe72e83e3a Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Wed, 31 Jul 2019 18:41:15 +0000
+Subject: [PATCH] BSH UI Target
+
+---
+ units/bsh-ui.target | 6 ++++++
+ units/meson.build | 1 +
+ units/multi-user.target | 2 +-
+ 3 file changed, 9 insertions(+), 1 deletion (-)
+ create mode 100644 units/bsh-ui.target
+
+
+diff --git a/units/bsh-ui.target b/units/bsh-ui.target
+new file mode 100644
+index 0000000..6275c4f
+--- /dev/null
++++ b/units/bsh-ui.target
+@@ -0,0 +1,6 @@
++[Unit]
++Description=BSH UI Target
++Requires=basic.target
++Before=multi-user.target
++After=basic.target
++
+diff --git a/units/meson.build b/units/meson.build
+index 49ace0d..12bee6c 100644
+--- a/units/meson.build
++++ b/units/meson.build
+@@ -18,6 +18,7 @@
+ units = [
+         ['basic.target',                        ''],
+         ['bluetooth.target',                    ''],
++        ['bsh-ui.target',                       ''],
+         ['cryptsetup-pre.target',               'HAVE_LIBCRYPTSETUP'],
+         ['cryptsetup.target',                   'HAVE_LIBCRYPTSETUP',
+          'sysinit.target.wants/'],
+
+diff --git a/units/multi-user.target b/units/multi-user.target
+index 386e1b5..3e538bf 100644
+--- a/units/multi-user.target
++++ b/units/multi-user.target
+@@ -12,5 +12,5 @@ Description=Multi-User System
+ Documentation=man:systemd.special(7)
+-Requires=basic.target
++Requires=basic.target bsh-ui.target
+ Conflicts=rescue.service rescue.target
+-After=basic.target rescue.service rescue.target
++After=basic.target rescue.service rescue.target bsh-ui.target
+ AllowIsolate=yes
+
+-- 
+2.7.4

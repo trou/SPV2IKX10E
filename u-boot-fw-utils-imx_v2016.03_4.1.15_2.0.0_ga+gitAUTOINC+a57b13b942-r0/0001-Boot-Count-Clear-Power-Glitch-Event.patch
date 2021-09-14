@@ -1,0 +1,107 @@
+From 7edeb3e35c874e83a765a106afe40108a98b38fa Mon Sep 17 00:00:00 2001
+From: Wolfgang Birkner <wolfgang.birkner@bshg.com>
+Date: Wed, 30 Oct 2019 08:16:12 +0100
+Subject: [PATCH] Boot Count Clear Power Glitch Event
+
+This patch overwrites the generic boot count load function with a custom
+one for the IMX6_ULL. The custom function is necessary to be able to
+write read and write the boot count value in case of a power glitch.
+---
+ drivers/bootcount/Makefile           |  1 +
+ drivers/bootcount/bootcount_mx6ull.c | 75 ++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+)
+ create mode 100644 drivers/bootcount/bootcount_mx6ull.c
+
+diff --git a/drivers/bootcount/Makefile b/drivers/bootcount/Makefile
+index 6f1c419..0c6fe3a 100644
+--- a/drivers/bootcount/Makefile
++++ b/drivers/bootcount/Makefile
+@@ -10,3 +10,4 @@ obj-$(CONFIG_BOOTCOUNT_AM33XX)	+= bootcount_davinci.o
+ obj-$(CONFIG_BOOTCOUNT_RAM)	+= bootcount_ram.o
+ obj-$(CONFIG_BOOTCOUNT_ENV)	+= bootcount_env.o
+ obj-$(CONFIG_BOOTCOUNT_I2C)	+= bootcount_i2c.o
++obj-$(CONFIG_MX6ULL)		+= bootcount_mx6ull.o
+diff --git a/drivers/bootcount/bootcount_mx6ull.c b/drivers/bootcount/bootcount_mx6ull.c
+new file mode 100644
+index 0000000..357e8f3
+--- /dev/null
++++ b/drivers/bootcount/bootcount_mx6ull.c
+@@ -0,0 +1,75 @@
++/*------------------------------------------------------------------------------
++ Copyright 2019 BSH Hausgeraete GmbH
++
++ Redistribution and use in source and binary forms, with or without
++ modification, are permitted provided that the following conditions are met:
++
++ 1. Redistributions of source code must retain the above copyright notice,
++ this list of conditions and the following disclaimer.
++
++ 2. Redistributions in binary form must reproduce the above copyright
++ notice, this list of conditions and the following disclaimer in the
++ documentation and/or other materials provided with the distribution.
++
++ 3. Neither the name of the copyright holder nor the names of its
++ contributors may be used to endorse or promote products derived from this
++ software without specific prior written permission.
++
++ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++ AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++ IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
++ LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++ CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++ SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++ INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++ POSSIBILITY OF SUCH DAMAGE.
++ ------------------------------------------------------------------------------*/
++#include <bootcount.h>
++#include <linux/compiler.h>
++
++#if defined(CONFIG_SYS_BOOTCOUNT_ADDR)
++/* Override the generic bootcount_load function with a custom one for IMX6_ULL
++ * to be power glitch aware. */
++ulong bootcount_load(void)
++{
++	void *reg = (void *)CONFIG_SYS_BOOTCOUNT_ADDR;
++
++	static ulong snvs_lpsr_addr = 0x020cc04c;
++	static ulong snvs_lpgpr_addr = 0x020CC068;
++	static ulong snvs_lppgdr_addr = 0x020cc064;
++
++	/* Power glitch status bit */
++	static ulong snvs_lpsr_gpd = 0x00000008;
++
++	/* Magic number which has to be set in LPPGDR */
++	static ulong snvs_lppgdr_magic = 0x41736166;
++
++	/* In case of a power glitch event, the SNVS_LPGPR register is not readable 
++	 * and writable by default. Therefore, if this register is used for the boot 
++	 * counter, ensure that we can access it. */ 
++	if (CONFIG_SYS_BOOTCOUNT_ADDR == snvs_lpgpr_addr) {
++		if (readl(snvs_lpsr_addr) & snvs_lpsr_gpd) {
++			/* Power glitch occurred, reset it */
++			writel(snvs_lpsr_gpd, snvs_lpsr_addr);
++			writel(snvs_lppgdr_magic, snvs_lppgdr_addr);
++		}
++	}
++
++#if defined(CONFIG_SYS_BOOTCOUNT_SINGLEWORD)
++	u32 tmp = raw_bootcount_load(reg);
++
++	if ((tmp & 0xffff0000) != (BOOTCOUNT_MAGIC & 0xffff0000))
++		return 0;
++	else
++		return (tmp & 0x0000ffff);
++#else
++	if (raw_bootcount_load(reg + 4) != BOOTCOUNT_MAGIC)
++		return 0;
++	else
++		return raw_bootcount_load(reg);
++#endif /* defined(CONFIG_SYS_BOOTCOUNT_SINGLEWORD) */
++}
++#endif /* defined(CONFIG_SYS_BOOTCOUNT_ADDR) */
+-- 
+2.17.1
+

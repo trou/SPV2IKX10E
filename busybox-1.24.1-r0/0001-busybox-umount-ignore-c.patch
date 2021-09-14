@@ -1,0 +1,40 @@
+From 3613d6a0f26e139b694d61606257d0557e1a6ed8 Mon Sep 17 00:00:00 2001
+From: "Proske, Matthias (BSH)" <Matthias.Proske@bshg.com>
+Date: Thu, 28 Mar 2019 18:58:44 +0100
+Subject: [PATCH] busybox: umount: ignore -c
+
+This lets busybox ignore the -c option, which is in use by newer systemd
+functions.
+
+This is an existing patch. See
+http://lists.busybox.net/pipermail/busybox/2018-January/086045.html
+for details
+---
+ util-linux/umount.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/util-linux/umount.c b/util-linux/umount.c
+index c6c7441..e802666 100644
+--- a/util-linux/umount.c
++++ b/util-linux/umount.c
+@@ -44,7 +44,7 @@ static struct mntent *getmntent_r(FILE* stream, struct mntent* result,
+ }
+ #endif
+ 
+-/* Ignored: -v -t -i
++/* Ignored: -c -v -t -i
+  * bbox always acts as if -d is present.
+  * -D can be used to suppress it (bbox extension).
+  * Rationale:
+@@ -52,7 +52,7 @@ static struct mntent *getmntent_r(FILE* stream, struct mntent* result,
+  * thus, on many systems, bare umount _does_ drop loop devices.
+  * (2) many users request this feature.
+  */
+-#define OPTION_STRING           "fldDnra" "vt:i"
++#define OPTION_STRING           "fldDnra" "cvt:i"
+ #define OPT_FORCE               (1 << 0) // Same as MNT_FORCE
+ #define OPT_LAZY                (1 << 1) // Same as MNT_DETACH
+ //#define OPT_FREE_LOOP           (1 << 2) // -d is assumed always present
+-- 
+2.7.4
+

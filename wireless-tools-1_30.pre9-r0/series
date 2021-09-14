@@ -1,0 +1,4 @@
+remove.ldconfig.call.patch -p1
+man.patch -p1
+avoid_strip.patch -p1
+ldflags.patch -p1

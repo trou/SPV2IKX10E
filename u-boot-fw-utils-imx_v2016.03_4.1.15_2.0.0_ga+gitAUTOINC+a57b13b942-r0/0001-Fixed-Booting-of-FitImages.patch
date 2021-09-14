@@ -1,0 +1,60 @@
+From 9351286f233abbe3388b7c43020826bfd645b780 Mon Sep 17 00:00:00 2001
+From: "Birkner, Wolfgang (BSH)" <Wolfgang.Birkner@bshg.com>
+Date: Mon, 8 Apr 2019 09:14:23 +0200
+Subject: [PATCH] Fixed Booting of FitImages
+
+We have an older U-Boot version which does not completely support Secure
+Boot yet. If Secure Boot is enabled, our U-Boot only boots Legacy Images
+and Android Boot Images. It will not boot a FitImage, even if the
+configuration CONFIG_FIT is active.
+
+However this is not a problem for us, because we do not verify our
+images through U-Boot itself. Instead we check them via NXPs HAB
+library. Therefore our U-Boot does not need to support the verification
+of FitImages. Nevertheless the lines below have to be commented out,
+else our U-Boot will not boot the already verified FitImage.
+---
+ cmd/bootm.c | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/cmd/bootm.c b/cmd/bootm.c
+index dce7392..d45d8f9 100644
+--- a/cmd/bootm.c
++++ b/cmd/bootm.c
+@@ -128,6 +128,16 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+ 			return do_bootm_subcommand(cmdtp, flag, argc, argv);
+ 	}
+ 
++/* We have an older U-Boot version which does not completely support Secure Boot
++ * yet. If Secure Boot is enabled, our U-Boot only boots Legacy Images and
++ * Android Boot Images. It will not boot a FitImage, even if the configuration
++ * CONFIG_FIT is active.
++ * However this is not a problem for us, because we do not verify our images
++ * through U-Boot itself. Instead we check them via NXPs HAB library. Therefore
++ * our U-Boot does not need to support the verification of FitImages. Nevertheless
++ * the lines below have to be commented out, else our U-Boot will not boot the
++ * already verified FitImage. */
++#if 0
+ #ifdef CONFIG_SECURE_BOOT
+ 	extern uint32_t authenticate_image(
+ 			uint32_t ddr_start, uint32_t image_size);
+@@ -152,6 +162,7 @@ int do_bootm(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
+ 		return 1;
+ 	}
+ #endif
++#endif
+ 
+ 	return do_bootm_states(cmdtp, flag, argc, argv, BOOTM_STATE_START |
+ 		BOOTM_STATE_FINDOS | BOOTM_STATE_FINDOTHER |
+@@ -695,7 +706,7 @@ static int booti_setup(bootm_headers_t *images)
+ 		puts("Bad Linux ARM64 Image magic!\n");
+ 		return 1;
+ 	}
+-	
++
+ 	if (ih->image_size == 0) {
+ 		puts("Image lacks image_size field, assuming 16MiB\n");
+ 		ih->image_size = (16 << 20);
+-- 
+2.7.4
+

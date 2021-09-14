@@ -1,0 +1,4 @@
+out-of-tree.patch -p1
+0001-tests-add-a-target-for-building-tests-without-runnin.patch -p1
+0003-add-manufacturer-data-scan-response.patch -p1
+0002-tests-fix-error-message-for-offset-test.patch -p1

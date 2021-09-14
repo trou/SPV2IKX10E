@@ -1,0 +1,25 @@
+From ae393fa04579664833f0c725220e4037bd6f83a1 Mon Sep 17 00:00:00 2001
+From: Matthias Proske <Matthias.Proske@bshg.com>
+Date: Thu, 12 Sep 2019 12:50:36 +0000
+Subject: [PATCH] socket-util: fix getpeergroups() assert(fd) [UPSTREAM]
+
+---
+ src/basic/socket-util.c | 2 +-
+ 1 file changed, 1 insertions(+), 1 deletion(-)
+
+diff --git a/src/basic/socket-util.c b/src/basic/socket-util.c
+index 2c70cad..39eb2fd 100644
+--- a/src/basic/socket-util.c
++++ b/src/basic/socket-util.c
+@@ -1008,7 +1018,7 @@ int getpeergroups(int fd, gid_t **ret) {
+         socklen_t n = sizeof(gid_t) * 64;
+         _cleanup_free_ gid_t *d = NULL;
+ 
+-        assert(fd);
++        assert(fd >= 0);
+         assert(ret);
+ 
+         for (;;) {
+-- 
+2.7.4
+

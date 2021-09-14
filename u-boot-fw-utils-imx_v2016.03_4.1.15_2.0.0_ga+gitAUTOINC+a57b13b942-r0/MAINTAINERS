@@ -1,0 +1,7 @@
+MX6BSHSMBCPU BOARD
+M:	LinuxiBSH <LinuxiBSH@bsh.com>
+S:	Maintained
+F:	board/bsh/mx6bshsmbcpu/
+F:	include/configs/mx6bshsmbxxxcpu.h
+F:	configs/mx6bshsmbcpu_defconfig
+F:	configs/mx6bshsmbcpu_mfg_defconfig

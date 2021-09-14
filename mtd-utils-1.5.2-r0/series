@@ -1,0 +1,4 @@
+add-exclusion-to-mkfs-jffs2-git-2.patch -p1
+fix-armv7-neon-alignment.patch -p1
+mtd-utils-fix-corrupt-cleanmarker-with-flash_erase--j-command.patch -p1
+0001-Fix-build-with-musl.patch -p1

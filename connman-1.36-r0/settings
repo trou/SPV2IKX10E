@@ -1,0 +1,7 @@
+[global]
+TimeUpdates=manual
+TimezoneUpdates=manual
+
+[Gadget]
+Enable=true
+Tethering=false

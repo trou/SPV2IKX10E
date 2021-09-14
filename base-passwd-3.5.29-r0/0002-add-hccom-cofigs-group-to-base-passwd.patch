@@ -1,0 +1,22 @@
+From 41caf029a9ef6098107c1883bde1153a40814945 Mon Sep 17 00:00:00 2001
+From: "Matthias.Proske (BSH)" <Matthias.Proske@bshg.com>
+Date: Mon, 22 Jul 2019 09:11:19 +0200
+Subject: [PATCH] add hccom-cofigs group to base-passwd
+
+---
+ group.master | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/group.master b/group.master
+index a280bb6..f30ecb5 100644
+--- a/group.master
++++ b/group.master
+@@ -40,4 +40,5 @@ shutdown:*:70:
+ users:*:100:
+ bsh-keys:*:400:
+ bsh-certs:*:401:
++hccom-configs:*:6666:
+ nogroup:*:65534:
+-- 
+2.17.1
+

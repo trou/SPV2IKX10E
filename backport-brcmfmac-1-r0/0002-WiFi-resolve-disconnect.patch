@@ -1,0 +1,163 @@
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+index 5702a1f..6d31596 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+@@ -2003,6 +2003,11 @@ static void brcmf_set_join_pref(struct brcmf_if *ifp,
+ 		brcmf_err("Set join_pref error (%d)\n", err);
+ }
+ 
++#define MAX_SCAN_ABORT_WAIT_CNT	20
++#define WAIT_SCAN_ABORT_MSLEEP_TIME 10
++
++#define MAX_DISCONNECTION_WAIT_CNT 50
++#define WAIT_DISCONNECTION_MSLEEP_TIME 20
+ static s32
+ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
+ 		       struct cfg80211_connect_params *sme)
+@@ -2021,11 +2026,67 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
+ 	u16 chanspec;
+ 	s32 err = 0;
+ 	u32 ssid_len;
++	u32 wait_cnt;
++	u8 bssid[ETH_ALEN];
+ 
+ 	brcmf_dbg(TRACE, "Enter\n");
+ 	if (!check_vif_up(ifp->vif))
+ 		return -EIO;
+ 
++	/* Abort on-going scan */
++	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
++		brcmf_abort_scanning(cfg);
++		wait_cnt = MAX_SCAN_ABORT_WAIT_CNT;
++		while (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status) &&
++		       wait_cnt) {
++			brcmf_dbg(CONN, "Waiting for SCAN termination.\n");
++			wait_cnt--;
++			msleep(WAIT_SCAN_ABORT_MSLEEP_TIME);
++		}
++
++		if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
++			brcmf_dbg(CONN,
++				  "Force clear SCAN_STATUS_BUSY status\n");
++			clear_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
++		}
++	}
++
++	if (!test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state) &&
++	    !brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_BSSID, bssid, ETH_ALEN)) {
++		u8 zero_addr[ETH_ALEN];
++
++		eth_zero_addr(zero_addr);
++		if (!ether_addr_equal(bssid, zero_addr)) {
++			struct brcmf_scb_val_le scbval;
++
++			memcpy(&scbval.ea, &profile->bssid, ETH_ALEN);
++			scbval.val =
++				cpu_to_le32(WLAN_REASON_DISASSOC_STA_HAS_LEFT);
++			err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_DISASSOC,
++						     &scbval, sizeof(scbval));
++			if (unlikely(err)) {
++				brcmf_err("BRCMF_C_DISASSOC failed (%d)\n",
++					  err);
++			}
++
++			wait_cnt = MAX_DISCONNECTION_WAIT_CNT;
++			while (test_bit(BRCMF_VIF_STATUS_DISCONNECTING,
++					&ifp->vif->sme_state) && wait_cnt) {
++				brcmf_dbg(CONN, "Waiting for disconnection\n");
++				wait_cnt--;
++				msleep(WAIT_DISCONNECTION_MSLEEP_TIME);
++			}
++
++			if (test_bit(BRCMF_VIF_STATUS_DISCONNECTING,
++				     &ifp->vif->sme_state)) {
++				brcmf_dbg(CONN,
++					  "Force clear DISCONNECTING status\n");
++				clear_bit(BRCMF_VIF_STATUS_DISCONNECTING,
++					  &ifp->vif->sme_state);
++			}
++		}
++	}
++
+ 	if (!sme->ssid) {
+ 		brcmf_err("Invalid ssid\n");
+ 		return -EOPNOTSUPP;
+@@ -2235,10 +2296,13 @@ done:
+ 	return err;
+ }
+ 
++#define DISASSOC_COMPLETION_WAIT_TIME_MS	200
++
+ static s32
+ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
+ 		       u16 reason_code)
+ {
++	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
+ 	struct brcmf_if *ifp = netdev_priv(ndev);
+ 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
+ 	struct brcmf_scb_val_le scbval;
+@@ -2248,17 +2312,29 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
+ 	if (!check_vif_up(ifp->vif))
+ 		return -EIO;
+ 
++	if (test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status))
++		brcmf_abort_scanning(cfg);
++
++	if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state) ||
++	    test_bit(BRCMF_VIF_STATUS_CONNECTING, &ifp->vif->sme_state)) {
++		set_bit(BRCMF_VIF_STATUS_DISCONNECTING, &ifp->vif->sme_state);
++		memcpy(&scbval.ea, &profile->bssid, ETH_ALEN);
++		scbval.val = cpu_to_le32(reason_code);
++		err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_DISASSOC,
++					     &scbval, sizeof(scbval));
++		if (unlikely(err)) {
++			brcmf_err("error (%d)\n", err);
++		} else {
++			brcmf_err("Wait for a disconnecting completion.\n");
++			msleep(DISASSOC_COMPLETION_WAIT_TIME_MS);
++		}
++	}
++
++	clear_bit(BRCMF_VIF_STATUS_DISCONNECTING, &ifp->vif->sme_state);
+ 	clear_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
+ 	clear_bit(BRCMF_VIF_STATUS_CONNECTING, &ifp->vif->sme_state);
+ 	cfg80211_disconnected(ndev, reason_code, NULL, 0, true, GFP_KERNEL);
+ 
+-	memcpy(&scbval.ea, &profile->bssid, ETH_ALEN);
+-	scbval.val = cpu_to_le32(reason_code);
+-	err = brcmf_fil_cmd_data_set(ifp, BRCMF_C_DISASSOC,
+-				     &scbval, sizeof(scbval));
+-	if (err)
+-		brcmf_err("error (%d)\n", err);
+-
+ 	brcmf_dbg(TRACE, "Exit\n");
+ 	return err;
+ }
+@@ -5881,8 +5952,15 @@ brcmf_bss_roaming_done(struct brcmf_cfg80211_info *cfg,
+ 	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_BSS_INFO,
+ 				     buf, WL_BSS_INFO_MAX);
+ 
+-	if (err)
+-		goto done;
++	/* To make sure disconnect and fw sync */
++	if (err) {
++		brcmf_err("BRCMF_C_GET_BSS_INFO failed. (%d)\n", err);
++		clear_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
++		brcmf_cfg80211_disconnect(wiphy, ndev, WLAN_REASON_UNSPECIFIED);
++		kfree(buf);
++		brcmf_dbg(TRACE, "Exit\n");
++		return err;
++	}
+ 
+ 	bi = (struct brcmf_bss_info_le *)(buf + 4);
+ 	ch.chspec = le16_to_cpu(bi->chanspec);
+@@ -5914,7 +5992,8 @@ done:
+ 	cfg80211_roamed(ndev, &roam_info, GFP_KERNEL);
+ 	brcmf_dbg(CONN, "Report roaming result\n");
+ 
+-	set_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
++	if (!err)
++		set_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state);
+ 	brcmf_dbg(TRACE, "Exit\n");
+ 	return err;
+ }

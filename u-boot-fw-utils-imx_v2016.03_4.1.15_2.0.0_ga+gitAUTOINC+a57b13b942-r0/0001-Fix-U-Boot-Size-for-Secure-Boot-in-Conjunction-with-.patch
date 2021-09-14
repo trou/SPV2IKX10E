@@ -1,0 +1,70 @@
+From 49c102d86700c19301c335bcd62bc7fa4960be39 Mon Sep 17 00:00:00 2001
+From: "Birkner, Wolfgang (BSH)" <Wolfgang.Birkner@bshg.com>
+Date: Fri, 24 May 2019 15:57:20 +0200
+Subject: [PATCH] Fix U-Boot Size for Secure Boot in Conjunction with NAND
+
+When U-Boot is loaded from NAND, the U-Boot size must exactly fit the
+size of the original U-Boot image plus the CONFIG_CSF_SIZE. If this does
+not fit, the ROM code on imx6 cannot load U-Boot from NAND.
+Furthermore the U-Boot load address must exactly end on an address which
+is a multiple of 0x1000, otherwise loading from NAND will also fail.
+
+This patch ensures, that the U-Boot image is correctly padded when NAND
+is used and Secure Boot is active.
+---
+ tools/imximage.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/tools/imximage.c b/tools/imximage.c
+index 71e6a6c..791b21e 100644
+--- a/tools/imximage.c
++++ b/tools/imximage.c
+@@ -15,6 +15,14 @@
+ #include <image.h>
+ #include "imximage.h"
+ 
++#ifdef CONFIG_SECURE_BOOT
++#ifdef CONFIG_SYS_BOOT_NAND
++#if CONFIG_CSF_SIZE % 0x1000
++	#error CSF size must be a multiple of 0x1000, else the ROM code cannot load U-Boot from NAND!
++#endif /* CONFIG_CSF_SIZE % 0x1000 */
++#endif /* CONFIG_SYS_BOOT_NAND */
++#endif /* CONFIG_SECURE_BOOT */
++
+ #define UNDEFINED 0xFFFFFFFF
+ 
+ /*
+@@ -843,6 +851,15 @@ static void imximage_set_header(void *ptr, struct stat *sbuf, int ifd,
+ 	 */
+ 	*header_size_ptr = ROUND((sbuf->st_size + imximage_ivt_offset), 4096);
+ 
++#ifdef CONFIG_SECURE_BOOT
++#ifdef CONFIG_SYS_BOOT_NAND
++		/* U-Boot image was padded with CSF size, subtract this size from the
++		 * header size pointer to ensure a correct address calculation for the
++		 * CSF pointer. */
++		*header_size_ptr -= CONFIG_CSF_SIZE;
++#endif /* CONFIG_SYS_BOOT_NAND */
++#endif /* CONFIG_SECURE_BOOT */
++
+ 	if (csf_ptr && imximage_csf_size) {
+ 		*csf_ptr = params->ep - imximage_init_loadsize +
+ 			*header_size_ptr;
+@@ -937,6 +954,14 @@ static int imximage_generate(struct image_tool_params *params,
+ 
+ 	pad_len = ROUND(sbuf.st_size, 4096) - sbuf.st_size;
+ 
++#ifdef CONFIG_SECURE_BOOT
++#ifdef CONFIG_SYS_BOOT_NAND
++	/* Additionally pad the U-Boot image with the CSF size, thus it can be booted
++	 * from NAND. */
++	pad_len += CONFIG_CSF_SIZE;
++#endif /* CONFIG_SYS_BOOT_NAND */
++#endif /* CONFIG_SECURE_BOOT */
++
+ 	/* TODO: check i.MX image V1 handling, for now use 'old' style */
+ 	if (imximage_version == IMXIMAGE_V1)
+ 		return 0;
+-- 
+2.7.4
+

@@ -1,0 +1,57 @@
+From 3a33cae096a66f5ef6d8402ef8a657060bed965c Mon Sep 17 00:00:00 2001
+From: Wolfgang Birkner <wolfgang.birkner@bshg.com>
+Date: Tue, 18 Feb 2020 10:01:33 +0100
+Subject: [PATCH] Add Test Fuse Command
+
+This new command is used to test if a fuse was burnt.
+---
+ cmd/fuse.c | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/cmd/fuse.c b/cmd/fuse.c
+index 5998f9b..e7f179a 100644
+--- a/cmd/fuse.c
++++ b/cmd/fuse.c
+@@ -45,7 +45,7 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+ {
+ 	const char *op = argc >= 2 ? argv[1] : NULL;
+ 	int confirmed = argc >= 3 && !strcmp(argv[2], "-y");
+-	u32 bank, word, cnt, val;
++	u32 bank, word, cnt, val, bit;
+ 	int ret, i;
+ 
+ 	argc -= 2 + confirmed;
+@@ -121,6 +121,21 @@ static int do_fuse(cmd_tbl_t *cmdtp, int flag, int argc, char *const argv[])
+ 			if (ret)
+ 				goto err;
+ 		}
++	} else if (!strcmp(op, "test")) {
++		if ((argc != 3) || strtou32(argv[2], 0, &bit)) {
++			return CMD_RET_USAGE;
++		}
++
++		ret = fuse_read(bank, word, &val);
++		if (ret) {
++			goto err;
++		}
++
++		/* Return an error if the fuse is not set */
++		if (!(val & (1 << bit))) {
++			printf("Fuse on bank %d, word %d, bit %d not set\n", bank, word, bit);
++			return 1;
++		}
+ 	} else {
+ 		return CMD_RET_USAGE;
+ 	}
+@@ -142,5 +157,7 @@ U_BOOT_CMD(
+ 	"fuse prog [-y] <bank> <word> <hexval> [<hexval>...] - program 1 or\n"
+ 	"    several fuse words, starting at 'word' (PERMANENT)\n"
+ 	"fuse override <bank> <word> <hexval> [<hexval>...] - override 1 or\n"
+-	"    several fuse words, starting at 'word'"
++	"    several fuse words, starting at 'word'\n"
++	"fuse test <bank> <word> <bit> - test a fuse,\n"
++	"    returns 0 if the fuse is set"
+ );
+-- 
+2.7.4
+

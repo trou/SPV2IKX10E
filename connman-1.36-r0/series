@@ -1,0 +1,7 @@
+0001-Add-proprietary-BSH-DHCP-option.patch -p1
+0001-Add-connman-get-and-remove-known-services-methods.patch -p1
+0001-Make-DHCP-client-timeouts-suspend-aware.patch -p1
+0002-Add-startup-delay.patch -p1
+0004-gdhcp-Avoid-reading-invalid-data-in-dhcp_get_option.patch -p1
+0005-gdhcp-Avoid-leaking-stack-data-via-unitiialized-variable.patch -p1
+0006-dnsproxy-Add-length-checks-to-prevent-buffer-overflow.patch -p1

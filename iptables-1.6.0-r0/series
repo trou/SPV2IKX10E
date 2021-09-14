@@ -1,0 +1,3 @@
+types.h-add-defines-that-are-required-for-if_packet.patch -p1
+0001-configure-Add-option-to-enable-disable-libnfnetlink.patch -p1
+0002-configure.ac-only-check-conntrack-when-libnfnetlink-enabled.patch -p1

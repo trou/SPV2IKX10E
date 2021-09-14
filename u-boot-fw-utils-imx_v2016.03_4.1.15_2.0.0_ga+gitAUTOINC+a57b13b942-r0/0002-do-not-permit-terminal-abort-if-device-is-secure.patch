@@ -1,0 +1,67 @@
+From 68bcfb5f8def77c53184e22d70b5fc7b238b1642 Mon Sep 17 00:00:00 2001
+From: "Matthias.Proske (BSH)" <Matthias.Proske@bshg.com>
+Date: Fri, 7 Jun 2019 17:13:36 +0200
+Subject: [PATCH] do not permit terminal abort if device is secure
+
+This prevents all occurences in which a user might get to the terminal.
+This includes
+- abort the boot command (only permitted if not secure)
+- boot command did not succeed. We used to jump to command line
+interface for interactive running of commands
+---
+ common/autoboot.c                     |  3 +++
+ common/main.c                         |  4 ++++
+ include/common.h                      |  1 +
+ 4 files changed, 33 insertions(+)
+
+
+diff --git a/common/autoboot.c b/common/autoboot.c
+index d204589..9e05814 100644
+--- a/common/autoboot.c
++++ b/common/autoboot.c
+@@ -35,6 +35,7 @@ static int stored_bootdelay;
+ #if defined(CONFIG_AUTOBOOT_KEYED)
+ #if defined(CONFIG_AUTOBOOT_STOP_STR_SHA256)
+ 
++
+ /*
+  * Use a "constant-length" time compare function for this
+  * hash compare:
+@@ -282,6 +283,8 @@ static int abortboot_normal(int bootdelay)
+ 
+ static int abortboot(int bootdelay)
+ {
++	if (device_secured())
++		return 0;
+ #ifdef CONFIG_AUTOBOOT_KEYED
+ 	return abortboot_keyed(bootdelay);
+ #else
+diff --git a/common/main.c b/common/main.c
+index 1a2ef39..1407802 100644
+--- a/common/main.c
++++ b/common/main.c
+@@ -71,5 +71,9 @@ void main_loop(void)
+ 
+ 	autoboot_command(s);
+ 
++	/* We should not reach this point in normal operation */
++	if(device_secured())
++		hang();
++
+ 	cli_loop();
+ }
+diff --git a/include/common.h b/include/common.h
+index cc3774f..63b4a6b 100644
+--- a/include/common.h
++++ b/include/common.h
+@@ -192,6 +192,7 @@ void	hang		(void) __attribute__ ((noreturn));
+ 
+ int	timer_init(void);
+ int	cpu_init(void);
++int	device_secured(void);
+ 
+ /* */
+ phys_size_t initdram (int);
+-- 
+2.17.1
+

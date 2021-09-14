@@ -1,0 +1,4 @@
+configure-sbindir.patch -p1
+ptest.patch -p1
+display_testname_for_subtest.patch -p1
+avoid_parallel_tests.patch -p1

@@ -1,0 +1,5 @@
+fix-pktloc_syntax_h-race.patch -p1
+fix-pc-file.patch -p1
+0001-lib-add-utility-function-nl_strerror_l.patch -p1
+0002-lib-switch-to-using-strerror_l-instead-of-strerror_r.patch -p1
+0003-src-switch-to-using-strerror_l-instead-of-strerror_r.patch -p1

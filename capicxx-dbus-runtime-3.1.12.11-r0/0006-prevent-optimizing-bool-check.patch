@@ -1,0 +1,19 @@
+diff --git a/include/CommonAPI/DBus/DBusOutputStream.hpp b/include/CommonAPI/DBus/DBusOutputStream.hpp
+index 8719146..aa1b23b 100644
+--- a/include/CommonAPI/DBus/DBusOutputStream.hpp
++++ b/include/CommonAPI/DBus/DBusOutputStream.hpp
+@@ -63,8 +63,12 @@ public:
+ 
+     COMMONAPI_EXPORT OutputStream &writeValue(const bool &_value, const EmptyDeployment *_depl) {
+         (void)_depl;
+-        uint32_t tmp = (_value ? 1 : 0);
+-        return _writeValue(tmp);
++        volatile uint32_t tmp = 0;
++        if(_value)
++        {
++            tmp = 1;
++        }
++        return _writeValue(static_cast<uint32_t>(tmp));
+     }
+ 
+     COMMONAPI_EXPORT OutputStream &writeValue(const int8_t &_value, const EmptyDeployment *_depl) {

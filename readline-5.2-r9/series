@@ -1,0 +1,17 @@
+readline52-001 -p0
+readline52-002 -p0
+readline52-003 -p0
+readline52-004 -p0
+readline52-005 -p0
+readline52-006 -p0
+readline52-007 -p0
+readline52-008 -p0
+readline52-009 -p0
+readline52-010 -p0
+readline52-011 -p0
+readline52-012 -p0
+readline52-013 -p0
+readline52-014 -p0
+configure-fix.patch -p1
+config-dirent-symbols.patch -p1
+fix-redundant-rpath.patch -p1

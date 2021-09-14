@@ -1,0 +1,8 @@
+0001-added-the-possibility-to-load-multiple-INI-files.patch -p1
+0002-link-agains-stdc-fs-since-it-is-necessary-for-includ.patch -p1
+0003-Add-support-for-GetAll.patch -p1
+0004-fix-memory-leak.patch -p1
+0005-check-string-length.patch -p1
+0006-prevent-optimizing-bool-check.patch -p1
+0007-fix-memory-leak.patch -p1
+0008-adapt-the-remove-method-of-DBusAddressTranslator.patch -p1

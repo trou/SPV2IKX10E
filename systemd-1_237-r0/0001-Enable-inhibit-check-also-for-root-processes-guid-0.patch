@@ -1,0 +1,38 @@
+From 9e2d7c23d162b00dd25f07402cd760f39b5945a4 Mon Sep 17 00:00:00 2001
+From: "Bode, Michael (BSH)" <Michael.Bode@bshg.com>
+Date: Thu, 25 Jul 2019 13:04:59 +0200
+Subject: [PATCH] Enable inhibit check also for root processes guid 0
+
+---
+ src/systemctl/systemctl.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/systemctl/systemctl.c b/src/systemctl/systemctl.c
+index 5732d88..28ef287 100644
+--- a/src/systemctl/systemctl.c
++++ b/src/systemctl/systemctl.c
+@@ -3319,11 +3319,21 @@ static int logind_check_inhibitors(enum action a) {
+         if (arg_when > 0)
+                 return 0;
+ 
++#if 0
++       /* BSH patch: also inhibt if the systemd commands are
++        * called from root (uid=0).
++        * If we are root and BSH_INHIBIT_FOR_ROOT is NOT defined
++        * calls from root will not be ignored */
+         if (geteuid() == 0)
+                 return 0;
+ 
++        /* BSH patch: The systemctrl command is not blocked if the 
++         * request is not coming from a tty connection. We need to
++         * call this command from our power service and we want the
++         * command to fail in case there are inhibitors => comment out */
+         if (!on_tty())
+                 return 0;
++#endif
+ 
+         if (arg_transport != BUS_TRANSPORT_LOCAL)
+                 return 0;
+-- 
+2.17.1
+

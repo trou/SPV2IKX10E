@@ -1,0 +1,43 @@
+From 35bcc7ff06654539f32620da61be4bfd198c2c2c Mon Sep 17 00:00:00 2001
+From: "Bode, Michael (BSH)" <Michael.Bode@bshg.com>
+Date: Thu, 23 Jan 2020 13:49:37 +0100
+Subject: [PATCH] Add command to get hw variant
+
+---
+ cmd/Kconfig  | 6 ++++++
+ cmd/Makefile | 2 ++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/cmd/Kconfig b/cmd/Kconfig
+index 2ed0263..ae2fe5b 100644
+--- a/cmd/Kconfig
++++ b/cmd/Kconfig
+@@ -131,6 +131,12 @@ config CMD_LICENSE
+ 	help
+ 	  Print GPL license text
+ 
++config CMD_HW_VARIANT
++	bool "hw_variant"
++	default y
++	help
++	  Print hardware variant
++
+ endmenu
+ 
+ menu "Boot commands"
+diff --git a/cmd/Makefile b/cmd/Makefile
+index 8930a0f..001d587 100644
+--- a/cmd/Makefile
++++ b/cmd/Makefile
+@@ -162,6 +162,8 @@ endif # CONFIG_SPL_BUILD
+ obj-$(CONFIG_CMD_BLOB) += blob.o
+ obj-$(CONFIG_BOOTCOUNT_LIMIT) += boot_count.o
+ 
++obj-$(CONFIG_CMD_HW_VARIANT) += hw_variant.o
++
+ # core command
+ obj-y += nvedit.o
+ obj-y += disk.o
+-- 
+2.17.1
+

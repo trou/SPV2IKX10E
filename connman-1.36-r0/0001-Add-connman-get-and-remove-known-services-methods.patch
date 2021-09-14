@@ -1,0 +1,375 @@
+diff --git a/client/commands.c b/client/commands.c
+index 05b9316..594f375 100644
+--- a/client/commands.c
++++ b/client/commands.c
+@@ -389,6 +389,58 @@ static int cmd_services(char *args[], int num, struct connman_option *options)
+ 			object_properties, path, NULL, NULL);
+ }
+ 
++static int cmd_known_services(char *args[], int num, struct connman_option *options)
++{
++	if (num > 1)
++		return -E2BIG;
++
++	return __connmanctl_dbus_method_call(connection,
++			 CONNMAN_SERVICE, CONNMAN_PATH,
++			 "net.connman.Manager",
++			 "GetKnownServices",
++			 services_list, NULL, NULL, NULL);
++}
++
++
++static int remove_known_service_return(DBusMessageIter *iter, const char *error,
++		void *user_data)
++{
++	char *path = user_data;
++
++	if (!error) {
++		char *str = strrchr(path, '/');
++		str++;
++		fprintf(stdout, "Removed %s\n", str);
++	} else
++		fprintf(stderr, "Error %s: %s\n", path, error);
++
++	g_free(user_data);
++
++	return 0;
++}
++
++static int cmd_remove_known_service(char *args[], int num, struct connman_option *options)
++{
++	char *path_of_service_to_remove;
++
++	if (num > 2)
++		return -E2BIG;
++
++	if (num < 2)
++		return -EINVAL;
++
++	if (check_dbus_name(args[1]) == false)
++		return -EINVAL;
++
++	path_of_service_to_remove = g_strdup_printf("%s", args[1]);
++
++	return __connmanctl_dbus_method_call(connection,
++			 CONNMAN_SERVICE, CONNMAN_PATH,
++			 "net.connman.Manager",
++			 "RemoveKnownService",
++			 remove_known_service_return, path_of_service_to_remove, NULL, NULL);
++}
++
+ static int cmd_peers(char *args[], int num, struct connman_option *options)
+ {
+ 	char *peer_name = NULL;
+@@ -2738,6 +2790,10 @@ static const struct {
+ 	  lookup_tether },
+ 	{ "services",     "[<service>]",  service_options, cmd_services,
+ 	  "Display services", lookup_service_arg },
++	{ "known-services",     NULL,  NULL, cmd_known_services,
++	  "Display known services", NULL },
++	{ "remove-known-service", "<service>",  NULL, 
++	  cmd_remove_known_service, "Remove known service", NULL },
+ 	{ "peers",        "[peer]",       NULL,            cmd_peers,
+ 	  "Display peers", lookup_peer_arg },
+ 	{ "scan",         "<technology>", NULL,            cmd_scan,
+diff --git a/src/connman.h b/src/connman.h
+index 82e77d3..bb01385 100644
+--- a/src/connman.h
++++ b/src/connman.h
+@@ -665,6 +665,7 @@ int __connman_service_init(void);
+ void __connman_service_cleanup(void);
+ int __connman_service_load_modifiable(struct connman_service *service);
+ 
++void __connman_known_service_list_struct(DBusMessageIter *iter);
+ void __connman_service_list_struct(DBusMessageIter *iter);
+ 
+ int __connman_service_compare(const struct connman_service *a,
+@@ -739,6 +740,7 @@ int __connman_service_disconnect_all(void);
+ void __connman_service_set_active_session(bool enable, GSList *list);
+ void __connman_service_auto_connect(enum connman_service_connect_reason reason);
+ bool __connman_service_remove(struct connman_service *service);
++bool __connman_service_remove_known_service(const char *path);
+ bool __connman_service_is_provider_pending(struct connman_service *service);
+ void __connman_service_set_provider_pending(struct connman_service *service,
+ 							DBusMessage *msg);
+diff --git a/src/manager.c b/src/manager.c
+index d15ce20..7c6ff14 100644
+--- a/src/manager.c
++++ b/src/manager.c
+@@ -175,6 +175,11 @@ static struct connman_notifier technology_notifier = {
+ 	.idle_state	= idle_state,
+ };
+ 
++static void append_known_service_structs(DBusMessageIter *iter, void *user_data)
++{
++	__connman_known_service_list_struct(iter);
++}
++
+ static void append_service_structs(DBusMessageIter *iter, void *user_data)
+ {
+ 	__connman_service_list_struct(iter);
+@@ -195,6 +200,58 @@ static DBusMessage *get_services(DBusConnection *conn,
+ 	return reply;
+ }
+ 
++static DBusMessage *get_known_services(DBusConnection *conn,
++				   DBusMessage *msg, void *data)
++{
++	DBusMessage *reply;
++
++	reply = dbus_message_new_method_return(msg);
++	if (!reply)
++		return NULL;
++
++	__connman_dbus_append_objpath_dict_array(reply,
++				 append_known_service_structs, NULL);
++
++	return reply;
++}
++
++static DBusMessage *remove_known_service(DBusConnection *conn,
++				   DBusMessage *msg, void *data)
++{
++	DBusMessage *reply;
++	const char *path;
++	int err;
++
++	reply = dbus_message_new_method_return(msg);
++	if (!reply)
++		return NULL;
++
++	/* get path */
++	dbus_message_get_args(msg, NULL, DBUS_TYPE_OBJECT_PATH, &path,
++							DBUS_TYPE_INVALID);
++
++	/* extract service */
++	char *str = strrchr(path, '/');
++	if(NULL == str)
++	{
++		return __connman_error_failed(msg, -ENOENT);
++	}
++	str++;
++	if(0 >= strlen(str))
++	{
++		return __connman_error_failed(msg, -ENOENT);
++	}
++
++	DBG("Service to remove [%s]", str);
++
++	if (!__connman_service_remove_known_service(str))
++	{
++		return __connman_error_failed(msg, -ENOENT);
++	}
++
++	return g_dbus_create_reply(msg, DBUS_TYPE_INVALID);
++}
++
+ static void append_peer_structs(DBusMessageIter *iter, void *user_data)
+ {
+ 	__connman_peer_list_struct(iter);
+@@ -513,6 +570,12 @@ static const GDBusMethodTable manager_methods[] = {
+ 	{ GDBUS_DEPRECATED_METHOD("RemoveProvider",
+ 			GDBUS_ARGS({ "provider", "o" }), NULL,
+ 			remove_provider) },
++	{ GDBUS_METHOD("GetKnownServices",
++			NULL, GDBUS_ARGS({"knownServices", "a(oa{sv})" }),
++			get_known_services) },
++	{ GDBUS_METHOD("RemoveKnownService",
++			GDBUS_ARGS({ "path", "o" }), NULL,
++			remove_known_service) },
+ 	{ GDBUS_METHOD("GetServices",
+ 			NULL, GDBUS_ARGS({ "services", "a(oa{sv})" }),
+ 			get_services) },
+diff --git a/src/service.c b/src/service.c
+index 733c072..5de7974 100644
+--- a/src/service.c
++++ b/src/service.c
+@@ -2577,6 +2577,79 @@ static void append_struct(gpointer value, gpointer user_data)
+ 	append_struct_service(iter, append_dict_properties, service);
+ }
+ 
++void __connman_known_service_list_struct(DBusMessageIter *iter)
++{
++	gchar **services = NULL;
++	gchar **serviceIDParts = NULL;
++	int i = 0;
++	struct connman_service *service = NULL;
++
++	DBG("listing known services");
++
++	services = connman_storage_get_services();
++	if (services == NULL)
++		return;
++
++	for (i = 0; i < g_strv_length(services); i++)
++	{
++		service = connman_service_create();
++		if (service == NULL)
++		{
++			connman_error("connman_service_create() allocation failed");
++			return ;
++		}
++		service->identifier = g_strdup(services[i]);
++		serviceIDParts = g_strsplit(services[i], "_",
++									-1);
++		if (serviceIDParts != NULL)
++		{
++			service->type =
++				__connman_service_string2type(serviceIDParts[0]);
++			service->path =
++				g_strdup_printf("%s/service/%s", CONNMAN_PATH, service->identifier);
++			if (service->type ==
++				CONNMAN_SERVICE_TYPE_WIFI)
++				service->security =
++					__connman_service_string2security(serviceIDParts[g_strv_length(serviceIDParts) - 1]);
++
++			if (service->path != NULL)
++			{
++
++				if (find_service(service->path) != NULL)
++
++					service->state = (find_service(service->path))->state;
++				if (service->type ==
++						CONNMAN_SERVICE_TYPE_ETHERNET &&
++					find_service(service->path) != NULL)
++
++					service->name = (find_service(service->path))->name;
++
++				if (0 !=
++					service_load(service))
++				{
++
++					connman_error("service_load() returned error");
++
++					g_free(service);
++
++					g_strfreev(serviceIDParts);
++
++					g_strfreev(services);
++					return;
++				}
++
++				append_struct_service(iter,
++									  append_dict_properties, service);
++			}
++
++			g_strfreev(serviceIDParts);
++		}
++		g_free(service);
++	}
++
++	g_strfreev(services);
++}
++
+ void __connman_service_list_struct(DBusMessageIter *iter)
+ {
+ 	g_list_foreach(service_list, append_struct, iter);
+@@ -4406,6 +4479,13 @@ bool __connman_service_remove(struct connman_service *service)
+ 	return true;
+ }
+ 
++bool __connman_service_remove_known_service(const char *path)
++{
++	DBG("Remove known service [%s]", path);
++
++	return __connman_storage_remove_service(path);
++}
++
+ static DBusMessage *remove_service(DBusConnection *conn,
+ 					DBusMessage *msg, void *user_data)
+ {
+diff --git a/tools/manager-api.c b/tools/manager-api.c
+index e082962..b1291c6 100644
+--- a/tools/manager-api.c
++++ b/tools/manager-api.c
+@@ -64,6 +64,90 @@ static DBusMessage *set_property(DBusConnection *connection,
+ 	return reply;
+ }
+ 
++DBusMessage *manager_get_known_services(DBusConnection *connection)
++{
++	DBusMessage *message, *reply;
++	DBusError error;
++
++	message = dbus_message_new_method_call(CONNMAN_SERVICE,
++				   CONNMAN_MANAGER_PATH,
++				   CONNMAN_MANAGER_INTERFACE,
++				   "GetKnownServices");
++
++	if (!message)
++		return NULL;
++
++	dbus_error_init(&error);
++
++	reply = dbus_connection_send_with_reply_and_block(connection,
++				  message, -1, &error);
++	if (!reply)
++	{
++		if (dbus_error_is_set(&error))
++		{
++			LOG("%s", error.message);
++			dbus_error_free(&error);
++		}
++		else
++		{
++			LOG("Failed to get known services");
++		}
++		dbus_message_unref(message);
++		return NULL;
++	}
++
++	dbus_message_unref(message);
++
++	return reply;
++}
++
++DBusMessage *manager_remove_known_service(DBusConnection *connection,
++								const char *service_path)
++{
++	DBusMessage *message, *reply;
++	DBusError error;
++	DBusMessageIter array;
++
++	DBG("Service path to remove [%s]", service_path);
++
++	message = dbus_message_new_method_call(CONNMAN_SERVICE,
++				   CONNMAN_MANAGER_PATH,
++				   CONNMAN_MANAGER_INTERFACE,
++				   "RemoveKnownService");
++
++	if (!message)
++		return NULL;
++
++	dbus_error_init(&error);
++
++	dbus_message_iter_init_append(message, &array);
++
++	dbus_message_iter_append_basic(&array, DBUS_TYPE_OBJECT_PATH,
++				&service_path);
++
++	reply = dbus_connection_send_with_reply_and_block(connection,
++				  message, -1, &error);
++
++	if (!reply)
++	{
++		if (dbus_error_is_set(&error))
++		{
++			LOG("%s", error.message);
++			dbus_error_free(&error);
++		}
++		else
++		{
++			LOG("Failed to get known services");
++		}
++		dbus_message_unref(message);
++		return NULL;
++	}
++
++	dbus_message_unref(message);
++
++	return reply;
++}
++
+ DBusMessage *manager_get_services(DBusConnection *connection)
+ {
+ 	DBusMessage *message, *reply;

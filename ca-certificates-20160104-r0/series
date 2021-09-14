@@ -1,0 +1,5 @@
+0002-update-ca-certificates-use-SYSROOT.patch -p1
+0001-update-ca-certificates-don-t-use-Debianisms-in-run-p.patch -p1
+update-ca-certificates-support-Toybox.patch -p1
+default-sysroot.patch -p1
+sbindir.patch -p1

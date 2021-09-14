@@ -1,0 +1,2 @@
+0001-mksquashfs.c-get-inline-functions-work-with-C99.patch -p2
+fix-compat.patch -p1

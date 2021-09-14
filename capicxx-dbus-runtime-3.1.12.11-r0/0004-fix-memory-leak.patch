@@ -1,0 +1,33 @@
+From 45ed755ac030bfb1f6cd915c2ddfa9655fe075bd Mon Sep 17 00:00:00 2001
+Message-Id: <45ed755ac030bfb1f6cd915c2ddfa9655fe075bd.1558111804.git.thorsten.klein@bshg.com>
+From: "Klein, Thorsten (BSH)" <thorsten.klein@bshg.com>
+Date: Fri, 17 May 2019 18:49:59 +0200
+Subject: [PATCH] fix memory leak
+
+---
+ src/CommonAPI/DBus/DBusObjectManager.cpp | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/CommonAPI/DBus/DBusObjectManager.cpp b/src/CommonAPI/DBus/DBusObjectManager.cpp
+index cf5fbc2..f7cd147 100644
+--- a/src/CommonAPI/DBus/DBusObjectManager.cpp
++++ b/src/CommonAPI/DBus/DBusObjectManager.cpp
+@@ -267,6 +267,15 @@ bool DBusObjectManager::removeDBusInterfaceHandler(const DBusInterfaceHandlerPat
+                 dbusRegisteredObjectsTable_.erase(dbusRegisteredObjectsTableIter);
+             }
+         }
++        if(dbusInterfaceHandler->hasFreedesktopProperties())
++        {
++            const auto& dbusRegisteredObjectsTableIter = dbusRegisteredObjectsTable_.find({dbusInterfaceHandlerPath.first, "org.freedesktop.DBus.Properties"});
++            const bool isDBusInterfaceHandlerAdded = (dbusRegisteredObjectsTableIter != dbusRegisteredObjectsTable_.end());
++            if(isDBusInterfaceHandlerAdded)
++            {
++                dbusRegisteredObjectsTable_.erase(dbusRegisteredObjectsTableIter);
++            }
++        }
+     }
+ 
+     return isDBusInterfaceHandlerAdded;
+-- 
+2.7.4
+

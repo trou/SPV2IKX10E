@@ -1,0 +1,101 @@
+From aa23c50caa20a5706bb8835d0db5400ccbb2e711 Mon Sep 17 00:00:00 2001
+From: "Holesch, Simon (BSH)" <simon.holesch@bshg.com>
+Date: Thu, 27 Feb 2020 18:52:25 +0100
+Subject: [PATCH] Support environment variable whitelisting
+
+Use the default environment and import only whitelisted variables from
+the writable environment. This ensures the chain of trust by preventing
+malicious boot scripts from being executed, while still allowing to use
+state variables to control the boot process.
+
+This patch only changes the behavior if the redundant environment is
+used.
+---
+ common/env_common.c   | 28 ++++++++++++++++++++++++++++
+ common/env_mmc.c      |  2 +-
+ common/env_nand.c     |  2 +-
+ include/environment.h |  3 +++
+ 4 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/common/env_common.c b/common/env_common.c
+index af59c72..7a65118 100644
+--- a/common/env_common.c
++++ b/common/env_common.c
+@@ -225,6 +225,34 @@ int env_import(const char *buf, int check)
+ 	return 0;
+ }
+ 
++int env_import_whitelisted(const char *buf)
++{
++#ifdef CONFIG_BSH_ENV_WHITELIST
++	static const char * whitelist[] = { CONFIG_BSH_ENV_WHITELIST };
++	env_t *ep = (env_t *)buf;
++
++	/* Using default environment as base */
++	set_default_env(NULL);
++
++	/* override only the whitelisted variables */
++	puts("Importing whitelisted environment variables\n");
++	if (himport_r(&env_htab, (char *)ep->data, ENV_SIZE, '\0', H_NOCLEAR, 0,
++				sizeof(whitelist) / sizeof(whitelist[0]),
++				(char **)(uintptr_t)whitelist)) {
++		gd->flags |= GD_FLG_ENV_READY;
++		return 1;
++	}
++
++	error("Cannot import environment: errno = %d\n", errno);
++
++	set_default_env("!import failed");
++
++	return 0;
++#else
++	return env_import(buf, 0);
++#endif
++}
++
+ /* Emport the environment and generate CRC for it. */
+ int env_export(env_t *env_out)
+ {
+diff --git a/common/env_mmc.c b/common/env_mmc.c
+index bdb452e..a3346e2 100644
+--- a/common/env_mmc.c
++++ b/common/env_mmc.c
+@@ -285,7 +285,7 @@ void env_relocate_spec(void)
+ 		ep = tmp_env2;
+ 
+ 	env_flags = ep->flags;
+-	env_import((char *)ep, 0);
++	env_import_whitelisted((char *)ep);
+ 	ret = 0;
+ 
+ fini:
+diff --git a/common/env_nand.c b/common/env_nand.c
+index b32eeac..dde2790 100644
+--- a/common/env_nand.c
++++ b/common/env_nand.c
+@@ -366,7 +366,7 @@ void env_relocate_spec(void)
+ 		ep = tmp_env2;
+ 
+ 	env_flags = ep->flags;
+-	env_import((char *)ep, 0);
++	env_import_whitelisted((char *)ep);
+ 
+ done:
+ 	free(tmp_env1);
+diff --git a/include/environment.h b/include/environment.h
+index 1fdbdad..da6bcee 100644
+--- a/include/environment.h
++++ b/include/environment.h
+@@ -220,6 +220,9 @@ int set_default_vars(int nvars, char * const vars[]);
+ /* Import from binary representation into hash table */
+ int env_import(const char *buf, int check);
+ 
++/* Import whitelisted variables from binary representation into hash table */
++int env_import_whitelisted(const char *buf);
++
+ /* Export from hash table into binary representation */
+ int env_export(env_t *env_out);
+ 
+-- 
+2.17.1
+

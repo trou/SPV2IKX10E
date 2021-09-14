@@ -1,0 +1,39 @@
+From b182acf95627c88cfe3ffa5f9d3060b70d69fdd2 Mon Sep 17 00:00:00 2001
+From: "Proske, Matthias (BSH)" <Matthias.Proske@bshg.com>
+Date: Fri, 15 Jun 2018 16:30:24 +0200
+Subject: [PATCH] FIX for NAND timing
+
+---
+ drivers/mtd/nand/mxs_nand.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/drivers/mtd/nand/mxs_nand.c b/drivers/mtd/nand/mxs_nand.c
+index 1cf3d11..32d1985 100644
+--- a/drivers/mtd/nand/mxs_nand.c
++++ b/drivers/mtd/nand/mxs_nand.c
+@@ -1282,6 +1282,22 @@ int mxs_nand_init(struct mxs_nand_info *info)
+ 			GPMI_CTRL1_ATA_IRQRDY_POLARITY | GPMI_CTRL1_DEV_RESET |
+ 			GPMI_CTRL1_BCH_MODE);
+ 
++	/* set timing for NAND */
++
++#define SAFE_ADDRESS_SETUP	4
++#define SAFE_DATA_HOLD		3
++#define SAFE_DATA_SETUP		4
++
++#define GPMI_TIMING0_ADDRESS_SETUP_SHIFT	16
++#define GPMI_TIMING0_DATA_HOLD_SHIFT		8
++#define GPMI_TIMING0_DATA_SETUP_SHIFT		0
++
++	int timing1 = (SAFE_ADDRESS_SETUP << GPMI_TIMING0_ADDRESS_SETUP_SHIFT) |
++		(SAFE_DATA_HOLD << GPMI_TIMING0_DATA_HOLD_SHIFT) |
++		(SAFE_DATA_SETUP << GPMI_TIMING0_DATA_SETUP_SHIFT);
++	writel(timing1, &gpmi_regs->hw_gpmi_timing0_reg);
++
++
+ 	return 0;
+ 
+ err3:
+-- 
+2.7.4
+

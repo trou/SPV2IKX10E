@@ -1,0 +1,6 @@
+acl-fix-the-order-of-expected-output-of-getfacl.patch -p1
+test-fix-insufficient-quoting-of.patch -p1
+test-fixups-on-SELinux-machines-for-root-testcases.patch -p1
+test-fix-directory-permissions.patch -p1
+relative-libdir.patch -p0
+add-missing-configure.ac.patch -p1

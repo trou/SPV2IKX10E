@@ -1,0 +1,10 @@
+#!/bin/sh
+IFACE="${PWD##*/udhcpc-}"
+read -r hostname _ < /etc/hostname
+
+# --timeout 1 --tryagain 0: Send Discover every second
+# --retries 60: Only change Transaction ID after 60 seconds. The Transaction ID
+#     is used to associate requests with responses.
+# --release: Notify DHCP server when shutting down
+exec udhcpc --foreground --interface="$IFACE" -x hostname:"$hostname" \
+    --timeout 1 --tryagain 0 --retries 60 --release 2>&1

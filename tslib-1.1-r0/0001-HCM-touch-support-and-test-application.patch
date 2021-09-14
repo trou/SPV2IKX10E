@@ -1,0 +1,461 @@
+From 3a5ae7e9fb6cb2838e1fb889806dea6d4e574591 Mon Sep 17 00:00:00 2001
+From: Parthiban Kulothungan <parthiban.kulothungan@in.bosch.com>
+Date: Mon, 30 May 2016 16:42:43 +0530
+Subject: [PATCH] HCM touch support and test application
+
+---
+ configure.ac         |   1 +
+ etc/ts.conf          |   2 +
+ plugins/Makefile.am  |  10 +++
+ plugins/hcm_touch.c  | 194 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ plugins/hcm_touch.h  |  54 ++++++++++++++
+ plugins/plugins.h    |   1 +
+ tests/Makefile.am    |   7 +-
+ tests/hcm_ts_test.c  |  65 +++++++++++++++++
+ tests/ts_calibrate.c |   1 +
+ 9 files changed, 333 insertions(+), 2 deletions(-)
+ create mode 100644 plugins/hcm_touch.c
+ create mode 100644 plugins/hcm_touch.h
+ create mode 100644 tests/hcm_ts_test.c
+
+diff --git a/configure.ac b/configure.ac
+index e144e51..626199e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -68,6 +68,7 @@ TSLIB_CHECK_MODULE([tatung], [yes], [Enable building of tatung raw module (Tatun
+ TSLIB_CHECK_MODULE([dmc], [yes], [Enable building of dmc raw module (HP iPaq DMC support)])
+ TSLIB_CHECK_MODULE([input], [yes], [Enable building of generic input raw module (Linux /dev/input/eventN support)])
+ TSLIB_CHECK_MODULE([touchkit], [yes], [Enable building of serial TouchKit raw module (Linux /dev/ttySX support)])
++TSLIB_CHECK_MODULE([hcm_touch], [yes], [Enable building of HCM serial raw module (Linux /dev/ttyX support)])
+ TSLIB_CHECK_MODULE([galax], [yes], [Enable building of HID USB eGalax raw module (Linux /dev/hiddevN support)])
+ 
+ 
+diff --git a/etc/ts.conf b/etc/ts.conf
+index dc5c4de..892e22a 100644
+--- a/etc/ts.conf
++++ b/etc/ts.conf
+@@ -19,6 +19,8 @@
+ # Uncomment if you're using an IBM Arctic II
+ # module_raw arctic2
+ 
++# Uncomment if you're using a HCM Touch
++module_raw hcm_touch
+ module pthres pmin=1
+ module variance delta=30
+ module dejitter delta=100
+diff --git a/plugins/Makefile.am b/plugins/Makefile.am
+index e938e17..8920e10 100644
+--- a/plugins/Makefile.am
++++ b/plugins/Makefile.am
+@@ -109,6 +109,12 @@ else
+ TOUCHKIT_MODULE =
+ endif
+ 
++if ENABLE_HCM_TOUCH_MODULE
++HCM_TOUCH_MODULE = hcm_touch.la
++else
++HCM_TOUCH_MODULE =
++endif
++
+ if ENABLE_LINEAR_H2200_MODULE
+ H2200_LINEAR_MODULE = linear_h2200.la
+ else
+@@ -138,6 +144,7 @@ pluginexec_LTLIBRARIES = \
+ 	$(INPUT_MODULE) \
+ 	$(GALAX_MODULE) \
+ 	$(TOUCHKIT_MODULE) \
++	$(HCM_TOUCH_MODULE) \
+ 	$(CY8MRLN_PALMPRE_MODULE)
+   
+ variance_la_SOURCES	= variance.c
+@@ -192,6 +199,9 @@ galax_la_LIBADD = $(top_builddir)/src/libts.la
+ touchkit_la_SOURCES	= touchkit-raw.c
+ touchkit_la_LDFLAGS	= -module $(LTVSN)
+ 
++hcm_touch_la_SOURCES	= hcm_touch.c
++hcm_touch_la_LDFLAGS	= -module $(LTVSN)
++
+ linear_h2200_la_SOURCES	= linear-h2200.c
+ linear_h2200_la_LDFLAGS	= -module $(LTVSN)
+ 
+diff --git a/plugins/hcm_touch.c b/plugins/hcm_touch.c
+new file mode 100644
+index 0000000..f91d5f5
+--- /dev/null
++++ b/plugins/hcm_touch.c
+@@ -0,0 +1,194 @@
++/*******************************************************************************
++ * hcm_touch.c - HCM touch user space driver 
++ *
++ * Copyright (C) RBEI-Linux-iCoC
++ * 2016 All Rights Reserved
++ *
++ ******************************************************************************/
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <unistd.h>
++#include <termios.h>
++#include <string.h>
++#include <errno.h>
++
++#include "config.h"
++#include "tslib-private.h"
++#include "hcm_touch.h"
++
++#define PACKET_SIZE 13 /*number of bytes in hcm touch data packet*/
++
++/**
++ *  Read buffer to receive hcm touch data
++ */
++static unsigned char buffer[PACKET_SIZE] = {0};
++
++/**
++ *  hcm_touch_tty_init - To initialize the tty touch screen interface
++ *
++ *  @touch_fd: Touch screen tty file descriptor
++ *
++ *  return: success/error code
++ */
++int hcm_touch_tty_init (int touch_fd)
++{
++    int ret = 0;
++#ifdef DEBUG
++    printf("HCM touch - hcm_touch_init call\n");
++#endif
++    ret = tcgetattr(touch_fd, &old_termios);
++    if(ret != 0)
++    {
++        printf("HCM touch - tcgetattr failed\n");
++        close(touch_fd);
++        return ret;
++    }
++
++    bzero(&new_termios, sizeof(new_termios));
++
++    /*tty conf: 19200 baud rate; 8 bit; non-parity; 1-stopbit*/
++    new_termios.c_cflag = B19200 | CS8 | CLOCAL | CREAD; 
++    new_termios.c_iflag = IGNBRK | IGNPAR | ICRNL; 
++
++    cfsetospeed(&new_termios,B19200);
++    cfsetispeed(&new_termios,B19200);
++
++    new_termios.c_oflag = 0; 
++    new_termios.c_lflag = 0; 
++    new_termios.c_cc[VINTR]    = 0;
++    new_termios.c_cc[VQUIT]    = 0;
++    new_termios.c_cc[VERASE]   = 0;
++    new_termios.c_cc[VKILL]    = 0;
++    new_termios.c_cc[VEOF]     = 4;
++    new_termios.c_cc[VTIME]    = 0;
++    new_termios.c_cc[VMIN]     = 1;
++    new_termios.c_cc[VSWTC]    = 0;
++    new_termios.c_cc[VSTART]   = 0;
++    new_termios.c_cc[VSTOP]    = 0;
++    new_termios.c_cc[VSUSP]    = 0;
++    new_termios.c_cc[VEOL]     = 0;
++    new_termios.c_cc[VREPRINT] = 0;
++    new_termios.c_cc[VDISCARD] = 0;
++    new_termios.c_cc[VWERASE]  = 0;
++    new_termios.c_cc[VLNEXT]   = 0;
++    new_termios.c_cc[VEOL2]    = 0;
++
++    ret = tcsetattr(touch_fd, TCSANOW, &new_termios);
++    if(ret != 0)
++    {
++        printf("HCM touch - tcsetattr failed, restoring old settings back\n");
++        tcsetattr(touch_fd, TCSANOW, &old_termios);
++        close(touch_fd);
++        return ret;
++    }
++    return 0;
++}
++
++/**
++ *  hcm_touch_read - HCM read to receive the touch screen data from tty/d-bus
++ *
++ *  @inf: tslib_module_info structure pointer
++ *  @samp: ts_sample structure pointer
++ *  @nr: integer value
++ *
++ *  return: success/error code
++ */
++static int hcm_touch_read(struct tslib_module_info *inf, 
++                            struct ts_sample *samp, int nr)
++{
++    int ret = 0;
++    int read_count = 0;
++    struct tsdev *ts = inf->dev;
++    struct dtu_frame_format *dtu_frame;
++    struct dbus_touch_uart *touch_data;
++#ifdef DEBUG
++    printf("HCM touch - Entering hcm_touch_read call\n");
++#endif
++    read_count = 0;
++    while (read_count < 5)
++    {
++        memset(buffer, 0, sizeof(unsigned char) * PACKET_SIZE);
++        ret = read(ts->fd, buffer, PACKET_SIZE);
++#ifdef DEBUG
++        printf("HCM touch - tty read, return val: %d\n", ret);
++#endif
++        if (ret < 0)
++            return ret;
++        else if (ret == 0)
++            return -ENODATA;
++        else if (ret < PACKET_SIZE)
++        {
++            read_count++;    
++            continue;
++        }
++        else
++            break;
++    }
++
++    /*checking for valid hcm touch data packet*/
++    if (buffer[0] == 0x09 && buffer[2] == 0x72 && buffer[3] == 0x22)
++    {
++        dtu_frame = (struct dtu_frame_format *) buffer;
++        touch_data = (struct dbus_touch_uart *) dtu_frame->data;
++
++        samp->x = touch_data->x2D;
++        samp->y = touch_data->y2D;
++        samp->pressure = (touch_data->Event2DTouch & 0x01);
++
++        gettimeofday(&samp->tv, NULL);
++
++        samp++;
++#ifdef DEBUG
++        printf("HCM touch - X samp:%d, Y samp:%d\n", samp->x, samp->y);
++#endif 
++
++    }
++    else 
++    {
++        ret = -ENODATA;
++    }
++
++    return 1; /* return 1 for success */
++}
++
++/**
++ *  tslib_ops initialization
++ */
++static const struct tslib_ops hcm_touch_ops = {
++    .read = hcm_touch_read,
++};
++
++/**
++ *  hcm_touch_mod_init - HCM touch module initialization/registration with tslib
++ *
++ *  @dev: tsdev structure pointer
++ *  @params: constant char array
++ *
++ *  return: tslib_module_info structure pointer
++ */
++TSAPI struct tslib_module_info *hcm_touch_mod_init(struct tsdev *dev, 
++                                                        const char *params)
++{
++    int ret = 0;
++    struct tslib_module_info *m;
++#ifdef DEBUG
++    printf("HCM touch - Entering hcm_touch_mod_init\n");
++#endif
++    ret = hcm_touch_tty_init(dev->fd);
++    if(ret < 0)
++    {
++        printf("HCM touch - tty init failed\n");
++        return NULL;
++    }
++    m = malloc(sizeof(struct tslib_module_info));
++    if (m == NULL)
++        return NULL;
++
++    m->ops = &hcm_touch_ops;
++    return m;
++}
++
++#ifndef TSLIB_STATIC_HCM_TOUCH_MODULE
++	TSLIB_MODULE_INIT(hcm_touch_mod_init);
++#endif
+diff --git a/plugins/hcm_touch.h b/plugins/hcm_touch.h
+new file mode 100644
+index 0000000..3b9b9cd
+--- /dev/null
++++ b/plugins/hcm_touch.h
+@@ -0,0 +1,54 @@
++/*******************************************************************************
++ * hcm_touch.h - HCM touch header file 
++ *
++ * Copyright (C) RBEI-Linux-iCoC
++ * 2016 All Rights Reserved
++ *
++ ******************************************************************************/
++
++#ifndef _HCM_TOUCH_H_
++#define _HCM_TOUCH_H_
++
++#include <stdio.h>
++#include <stdint.h>
++#include <termios.h>
++#include <unistd.h>
++
++/**
++  * Touch signals are encoded in the below format.
++  */
++#pragma pack(1)                   /*Activate structure packing at byte boundary*/
++struct dbus_touch_uart {
++    uint8_t  Event2DTouch;
++    uint16_t x2D;
++    uint16_t y2D;
++    uint8_t  StatusKeys1_4;
++    uint8_t  StatusKeys5_8;
++};
++
++/**
++  * Packets over UART is encoded in the below format.
++  * Configure UART at baud rate 19200
++  */
++struct dtu_frame_format {
++    uint8_t  msg_len;              /*Message length*/
++    uint8_t  tar_addr;             /*Target address*/
++    uint16_t id;                   /*Identifier*/
++    uint8_t  data[7];              /*Payload*/
++    uint16_t checksum;             /*Checksum*/   
++};
++#pragma pack()                     /*Restore back structure packing to default*/
++
++struct hcm_touch_uart_mgr {
++    uint8_t dev_busy;              /*To track if UART channel is available*/
++    
++    
++};
++
++/**
++ *  Termios structure variable for configure the tty interface.
++ */
++struct termios old_termios;
++struct termios new_termios;
++
++#endif /*_HCM_TOUCH_H_*/
+diff --git a/plugins/plugins.h b/plugins/plugins.h
+index 873aba5..39cce1e 100644
+--- a/plugins/plugins.h
++++ b/plugins/plugins.h
+@@ -15,4 +15,5 @@ TSLIB_DECLARE_MODULE(mk712);
+ TSLIB_DECLARE_MODULE(arctic2);
+ TSLIB_DECLARE_MODULE(tatung);
+ TSLIB_DECLARE_MODULE(input);
++TSLIB_DECLARE_MODULE(hcm_touch);
+ TSLIB_DECLARE_MODULE(cy8mrln_palmpre);
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index b76522d..2959fd7 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -11,7 +11,7 @@
+ AM_CFLAGS               = -DTS_POINTERCAL=\"@TS_POINTERCAL@\" $(DEBUGFLAGS)
+ INCLUDES		= -I$(top_srcdir)/src
+ 
+-bin_PROGRAMS		= ts_test ts_calibrate ts_print ts_print_raw ts_harvest
++bin_PROGRAMS		= ts_test ts_calibrate ts_print hcm_ts_test ts_print_raw ts_harvest
+ 
+ ts_test_SOURCES		= ts_test.c fbutils.c fbutils.h font_8x8.c font_8x16.c font.h
+ ts_test_LDADD		= $(top_builddir)/src/libts.la
+@@ -19,7 +19,10 @@ ts_test_LDADD		= $(top_builddir)/src/libts.la
+ ts_print_SOURCES	= ts_print.c
+ ts_print_LDADD		= $(top_builddir)/src/libts.la
+ 
+-ts_print_raw_SOURCES	= ts_print_raw.c
++hcm_ts_test_SOURCES	= hcm_ts_test.c
++hcm_ts_test_LDADD	= $(top_builddir)/src/libts.la
++
++ts_print_raw_SOURCES= ts_print_raw.c
+ ts_print_raw_LDADD	= $(top_builddir)/src/libts.la
+ 
+ ts_calibrate_SOURCES	= ts_calibrate.c fbutils.c fbutils.h testutils.c testutils.h font_8x8.c font_8x16.c font.h
+diff --git a/tests/hcm_ts_test.c b/tests/hcm_ts_test.c
+new file mode 100644
+index 0000000..42655f0
+--- /dev/null
++++ b/tests/hcm_ts_test.c
+@@ -0,0 +1,65 @@
++/**********************************************************************
++ * hcm_ts_test.c - HCM touch test application  
++ *
++ * Copyright (C) RBEI-Linux-iCoC
++ * 2016 All Rights Reserved
++ *
++ ***********************************************************************/
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <signal.h>
++#include <sys/fcntl.h>
++#include <sys/ioctl.h>
++#include <sys/mman.h>
++#include <sys/time.h>
++#include <unistd.h>
++
++#include "tslib.h"
++
++static int count;
++/**
++ *  HCM test main fution. 
++ */
++int main()
++{
++	struct tsdev *ts;
++	char *tsdevice=NULL;
++
++	if( (tsdevice = getenv("TSLIB_TSDEVICE")) != NULL ) 
++    {
++		ts = ts_open(tsdevice,0);
++	}
++
++	if (!ts) 
++    {
++		perror("ts_open");
++		exit(1);
++	}
++
++	if (ts_config(ts)) /*calling ts_config to init touch screen/interface*/
++    {
++		perror("ts_config");
++		exit(1);
++	}
++
++	while (1) {
++		struct ts_sample samp;
++		int ret;
++
++		ret = ts_read(ts, &samp, 1);
++        sleep(1);
++        printf("ts_read ret: 0x%x, count = %d\n", ret, count);
++        count++;
++		if (ret < 0) {
++			perror("ts_read");
++			exit(1);
++		}
++
++		if (ret != 1)
++			continue;
++
++		printf("%ld.%06ld: %6d %6d %6d\n", samp.tv.tv_sec, samp.tv.tv_usec, samp.x, samp.y, samp.pressure);
++
++	}
++}
+diff --git a/tests/ts_calibrate.c b/tests/ts_calibrate.c
+index eb0aca3..bc33888 100644
+--- a/tests/ts_calibrate.c
++++ b/tests/ts_calibrate.c
+@@ -29,6 +29,7 @@
+ 
+ #include "fbutils.h"
+ #include "testutils.h"
++#include "tslib-private.h"
+ 
+ static int palette [] =
+ {
+-- 
+1.8.4
+

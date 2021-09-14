@@ -1,0 +1,30 @@
+From de3b893757e5468919b8748c3de14cc70862c25a Mon Sep 17 00:00:00 2001
+From: "Dembianny, Sven (GED-SDD1)" <sven.dembianny@bshg.com>
+Date: Mon, 12 Aug 2019 07:31:58 +0000
+Subject: [PATCH] Remove error message getting from deactivation of tethering
+
+---
+ drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+index 314fd98..c5b5682 100644
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+@@ -4888,7 +4888,12 @@ static int brcmf_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
+ 		if (err < 0)
+ 			brcmf_err("BRCMF_C_UP error %d\n", err);
+ 
+-		brcmf_vif_clear_mgmt_ies(ifp->vif);
++		/* Commented out because of getting error
++		 * "brcmfmac: brcmf_vif_set_mgmt_ie: vndr ie set error : -30"
++		 * by deactivation of tethering
++		 * TODO: To be removed if this is fixed in next release from Cypress
++		 */
++		/* brcmf_vif_clear_mgmt_ies(ifp->vif); */
+ 	} else {
+ 		bss_enable.bsscfgidx = cpu_to_le32(ifp->bsscfgidx);
+ 		bss_enable.enable = cpu_to_le32(0);
+-- 
+2.7.4
+

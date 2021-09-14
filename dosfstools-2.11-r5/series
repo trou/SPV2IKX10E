@@ -1,0 +1,9 @@
+mkdosfs-bootcode.patch -p1
+mkdosfs-dir.patch -p1
+alignment_hack.patch -p1
+msdos_fat12_undefined.patch -p1
+dosfstools-msdos_fs-types.patch -p1
+include-linux-types.patch -p1
+nofat32_autoselect.patch -p1
+fix_populated_dosfs_creation.patch -p1
+0001-Include-fcntl.h-for-getting-loff_t-definition.patch -p1

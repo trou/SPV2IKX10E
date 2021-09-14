@@ -1,0 +1,145 @@
+From c697b1a5b86240a50cf7d886573b64f01e069c37 Mon Sep 17 00:00:00 2001
+From: Parthiban Kulothungan <parthiban.kulothungan@in.bosch.com>
+Date: Thu, 30 Jun 2016 17:11:21 +0530
+Subject: [PATCH] hcm touch changes after testing in hw
+
+---
+ plugins/hcm_touch.c | 76 ++++++++++++++++++++++++++++-------------------------
+ tests/hcm_ts_test.c |  4 +--
+ 2 files changed, 42 insertions(+), 38 deletions(-)
+
+diff --git a/plugins/hcm_touch.c b/plugins/hcm_touch.c
+index f91d5f5..11c2d76 100644
+--- a/plugins/hcm_touch.c
++++ b/plugins/hcm_touch.c
+@@ -19,6 +19,8 @@
+ 
+ #define PACKET_SIZE 13 /*number of bytes in hcm touch data packet*/
+ 
++#define DEBUG
++
+ /**
+  *  Read buffer to receive hcm touch data
+  */
+@@ -97,58 +99,60 @@ int hcm_touch_tty_init (int touch_fd)
+ static int hcm_touch_read(struct tslib_module_info *inf, 
+                             struct ts_sample *samp, int nr)
+ {
+-    int ret = 0;
+-    int read_count = 0;
++    int ret = 0, i;
+     struct tsdev *ts = inf->dev;
+-    struct dtu_frame_format *dtu_frame;
+-    struct dbus_touch_uart *touch_data;
++    
++    memset(buffer, 0, sizeof(unsigned char) * PACKET_SIZE);
++
+ #ifdef DEBUG
+     printf("HCM touch - Entering hcm_touch_read call\n");
+ #endif
+-    read_count = 0;
+-    while (read_count < 5)
++
++    ret = read(ts->fd, &buffer[0], 1);
++    if ( ret == 1 && buffer[0] == 0x09)
+     {
+-        memset(buffer, 0, sizeof(unsigned char) * PACKET_SIZE);
+-        ret = read(ts->fd, buffer, PACKET_SIZE);
+-#ifdef DEBUG
+-        printf("HCM touch - tty read, return val: %d\n", ret);
+-#endif
+-        if (ret < 0)
+-            return ret;
+-        else if (ret == 0)
+-            return -ENODATA;
+-        else if (ret < PACKET_SIZE)
++        ret = read(ts->fd, &buffer[1], 1);
++        ret = read(ts->fd, &buffer[2], 1);
++        if ( ret == 1 && buffer[2] == 0x72)
+         {
+-            read_count++;    
+-            continue;
++            ret = read(ts->fd, &buffer[3], 1);
++            if ( ret == 1 && buffer[3] == 0x22)
++            {
++                for (i = 0; i < 9; i++)
++                {
++                    read(ts->fd, &buffer[4+i], 1);
++                }
++            }
++            else
++                return -ENODATA;
+         }
+         else
+-            break;
++            return -ENODATA;
+     }
++    else 
++        return -ENODATA;
+ 
+-    /*checking for valid hcm touch data packet*/
+-    if (buffer[0] == 0x09 && buffer[2] == 0x72 && buffer[3] == 0x22)
+-    {
+-        dtu_frame = (struct dtu_frame_format *) buffer;
+-        touch_data = (struct dbus_touch_uart *) dtu_frame->data;
++#ifdef DEBUG
++    printf("Data: ");
++    for (i = 0; i < 13; i++)
++        printf("0x%x  ", buffer[i]);
++    printf("\n");
++#endif 
++
++    samp->y = ((uint16_t) buffer[5]) << 8 | (buffer[6]);
++    samp->x = 480 - (((uint16_t) buffer[7]) << 8 | (buffer[8]));
+ 
+-        samp->x = touch_data->x2D;
+-        samp->y = touch_data->y2D;
+-        samp->pressure = (touch_data->Event2DTouch & 0x01);
++    if (buffer[4])
++        samp->pressure = 1;
+ 
+-        gettimeofday(&samp->tv, NULL);
++    gettimeofday(&samp->tv, NULL);
++
++    samp++;
+ 
+-        samp++;
+ #ifdef DEBUG
+-        printf("HCM touch - X samp:%d, Y samp:%d\n", samp->x, samp->y);
++    printf("HCM touch - X samp: 0x%X, Y samp: 0x%X\n", samp->x, samp->y);
+ #endif 
+ 
+-    }
+-    else 
+-    {
+-        ret = -ENODATA;
+-    }
+-
+     return 1; /* return 1 for success */
+ }
+ 
+diff --git a/tests/hcm_ts_test.c b/tests/hcm_ts_test.c
+index 42655f0..eb7512e 100644
+--- a/tests/hcm_ts_test.c
++++ b/tests/hcm_ts_test.c
+@@ -48,7 +48,7 @@ int main()
+ 		int ret;
+ 
+ 		ret = ts_read(ts, &samp, 1);
+-        sleep(1);
++//        sleep(1);
+         printf("ts_read ret: 0x%x, count = %d\n", ret, count);
+         count++;
+ 		if (ret < 0) {
+@@ -59,7 +59,7 @@ int main()
+ 		if (ret != 1)
+ 			continue;
+ 
+-		printf("%ld.%06ld: %6d %6d %6d\n", samp.tv.tv_sec, samp.tv.tv_usec, samp.x, samp.y, samp.pressure);
++		printf("X=%6d; Y=%6d; Pressure=%6d;\n", samp.x, samp.y, samp.pressure);
+ 
+ 	}
+ }
+-- 
+1.8.4
+

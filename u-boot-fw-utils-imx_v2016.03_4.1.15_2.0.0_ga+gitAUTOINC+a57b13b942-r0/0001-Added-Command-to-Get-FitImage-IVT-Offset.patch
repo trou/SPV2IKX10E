@@ -1,0 +1,123 @@
+From 62189f44915afb14e465bffd990cf8b90f5ed4db Mon Sep 17 00:00:00 2001
+From: "Birkner, Wolfgang (BSH)" <Wolfgang.Birkner@bshg.com>
+Date: Fri, 12 Apr 2019 11:37:42 +0200
+Subject: [PATCH] Added Command to Get FitImage IVT Offset
+
+---
+ cmd/nvedit.c | 100 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 100 insertions(+)
+
+diff --git a/cmd/nvedit.c b/cmd/nvedit.c
+index 6b08847..cfa7ed2 100644
+--- a/cmd/nvedit.c
++++ b/cmd/nvedit.c
+@@ -1111,6 +1111,106 @@ static int do_env_exists(cmd_tbl_t *cmdtp, int flag, int argc,
+ }
+ #endif
+ 
++static unsigned long get_ulong_from_ram(unsigned long address)
++{
++	char *byte_value;
++	unsigned long *value_ptr;
++	char char_value[sizeof(*value_ptr)];
++
++	/* Point to the provided address */
++	byte_value = (char*)address;
++
++	/* Temporary reorder the character value, thus it can be read correctly */
++	char_value[3] = *byte_value++;
++	char_value[2] = *byte_value++;
++	char_value[1] = *byte_value++;
++	char_value[0] = *byte_value;
++
++	/* Now point to the correct unsigned long value */
++	value_ptr = (unsigned long*)char_value;
++
++	return *value_ptr;
++}
++
++static int do_setenv_ram_ulong(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++	unsigned long addr;
++	unsigned long value;
++	char char_value[9];		// 8 chars for HEX representation, 1 NULL char
++
++	if (argc != 3) {
++		cmd_usage(cmdtp);
++		return 1;
++	}
++
++	addr = simple_strtol(argv[2], NULL, 16);
++
++	/* Get the unsigned value from RAM */
++	value = get_ulong_from_ram(addr);
++
++	/* Convert the value to a string, thus it can be stored as environment variable */
++	sprintf(char_value, "%x", value);
++
++	/* Set the environment variable */
++	return setenv(argv[1], char_value);
++}
++
++U_BOOT_CMD(
++	setenv_ram_ulong, 3, 0, do_setenv_ram_ulong,
++	"set environment variable with unsinged long value from RAM",
++	"name addr\n"
++	"    - set environment variable 'name' with unsigned long value from RAM address 'addr'\n"
++);
++
++static int do_get_fit_ivt_offset(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
++{
++	unsigned long fit_size;
++	unsigned long fit_addr;
++	unsigned long tag_size = 0;
++	unsigned long fit_size_addr;
++	unsigned long padded_fit_size;
++	char char_padded_fit_size[9];		// 8 chars for HEX representation, 1 NULL char
++
++	/* Tag size parameter is optional, because not all of our FitImages have a tag */
++	if ((argc != 3) && (argc != 4)) {
++		cmd_usage(cmdtp);
++		return 1;
++	}
++
++	fit_addr = simple_strtol(argv[2], NULL, 16);
++
++	if (argc == 4) {
++		tag_size = simple_strtol(argv[3], NULL, 16);
++	}
++
++	/* The FitImage size has 4 bytes offset in the header and the header is located at the load address */
++	fit_size_addr = fit_addr + 4;
++
++	/* Get the original FitImage size from FitImage header */
++	fit_size = get_ulong_from_ram(fit_size_addr);
++
++	/* FitImage size has to be padded to a multiple of 0x1000 */
++	padded_fit_size = ((fit_size + tag_size) / 0x1000) * 0x1000;
++	if ((fit_size % 0x1000) != 0) {
++		/* Size is not a multiple of 0x1000, pad the image */
++		padded_fit_size += 0x1000;
++	}
++
++	/* Convert the size to a string, thus it can be stored as environment variable */
++	sprintf(char_padded_fit_size, "%x", padded_fit_size);
++
++	/* Set the environment variable */
++	return setenv(argv[1], char_padded_fit_size);
++}
++
++U_BOOT_CMD(
++	get_fit_ivt_offset, 4, 0, do_get_fit_ivt_offset,
++	"get the IVT offset of a FitImage and set it in environment variable",
++	"name fit_addr [tag_size]\n"
++	"    - get the IVT offset of a loaded FitImage with address 'fit_addr' and "
++	"tag size 'tag_size' and set it in environment variable 'name'\n"
++);
++
+ /*
+  * New command line interface: "env" command with subcommands
+  */
+-- 
+2.7.4
+

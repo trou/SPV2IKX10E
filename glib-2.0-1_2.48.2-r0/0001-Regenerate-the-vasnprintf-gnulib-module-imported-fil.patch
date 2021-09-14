@@ -1,0 +1,317 @@
+From c68903945d1f802a793456aa80afe3fb3e6712bc Mon Sep 17 00:00:00 2001
+From: Emmanuele Bassi <ebassi@gnome.org>
+Date: Thu, 9 Mar 2017 00:15:08 +0000
+Subject: [PATCH] Regenerate the vasnprintf gnulib module imported files
+
+Use gnulibg-tool --lgpl to import the vasnprintf module using the
+correct GNU Lesser General Public License, version 2.1 or later, like
+the rest of GLib.
+
+https://bugzilla.gnome.org/show_bug.cgi?id=777203
+---
+ glib/gnulib/asnprintf.c    | 16 ++++++++--------
+ glib/gnulib/printf-args.c  | 10 +++++-----
+ glib/gnulib/printf-args.h  | 10 +++++-----
+ glib/gnulib/printf-parse.c | 10 +++++-----
+ glib/gnulib/printf-parse.h | 10 +++++-----
+ glib/gnulib/vasnprintf.c   | 10 +++++-----
+ glib/gnulib/vasnprintf.h   | 10 +++++-----
+ glib/gnulib/verify.h       | 10 +++++-----
+ glib/gnulib/xsize.h        | 22 +++++++++++++++++-----
+ 9 files changed, 60 insertions(+), 48 deletions(-)
+
+diff --git a/glib/gnulib/asnprintf.c b/glib/gnulib/asnprintf.c
+index e4453ef..10a8d38 100644
+--- a/glib/gnulib/asnprintf.c
++++ b/glib/gnulib/asnprintf.c
+@@ -1,18 +1,18 @@
+ /* Formatted output to strings.
+-   Copyright (C) 1999, 2002 Free Software Foundation, Inc.
++   Copyright (C) 1999, 2002, 2006, 2009-2016 Free Software Foundation, Inc.
+ 
+-   This program is free software; you can redistribute it and/or modify it
+-   under the terms of the GNU Library General Public License as published
+-   by the Free Software Foundation; either version 2, or (at your option)
++   This program is free software; you can redistribute it and/or modify
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Library General Public License for more details.
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU Library General Public
+-   License along with this program; if not, see <http://www.gnu.org/licenses/>.  */
++   You should have received a copy of the GNU Lesser General Public License along
++   with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ #ifdef HAVE_CONFIG_H
+ # include <config.h>
+diff --git a/glib/gnulib/printf-args.c b/glib/gnulib/printf-args.c
+index e250a48..3f43258 100644
+--- a/glib/gnulib/printf-args.c
++++ b/glib/gnulib/printf-args.c
+@@ -1,18 +1,18 @@
+ /* Decomposed printf argument list.
+-   Copyright (C) 1999, 2002-2003, 2005-2007, 2009-2015 Free Software
++   Copyright (C) 1999, 2002-2003, 2005-2007, 2009-2016 Free Software
+    Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ /* This file can be parametrized with the following macros:
+diff --git a/glib/gnulib/printf-args.h b/glib/gnulib/printf-args.h
+index 8d268e9..d377036 100644
+--- a/glib/gnulib/printf-args.h
++++ b/glib/gnulib/printf-args.h
+@@ -1,18 +1,18 @@
+ /* Decomposed printf argument list.
+-   Copyright (C) 1999, 2002-2003, 2006-2007, 2011-2015 Free Software
++   Copyright (C) 1999, 2002-2003, 2006-2007, 2011-2016 Free Software
+    Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ #ifndef _PRINTF_ARGS_H
+diff --git a/glib/gnulib/printf-parse.c b/glib/gnulib/printf-parse.c
+index 30828a8..eab4b57 100644
+--- a/glib/gnulib/printf-parse.c
++++ b/glib/gnulib/printf-parse.c
+@@ -1,17 +1,17 @@
+ /* Formatted output to strings.
+-   Copyright (C) 1999-2000, 2002-2003, 2006-2015 Free Software Foundation, Inc.
++   Copyright (C) 1999-2000, 2002-2003, 2006-2016 Free Software Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ /* This file can be parametrized with the following macros:
+diff --git a/glib/gnulib/printf-parse.h b/glib/gnulib/printf-parse.h
+index 665789b..887cde4 100644
+--- a/glib/gnulib/printf-parse.h
++++ b/glib/gnulib/printf-parse.h
+@@ -1,18 +1,18 @@
+ /* Parse printf format string.
+-   Copyright (C) 1999, 2002-2003, 2005, 2007, 2010-2015 Free Software
++   Copyright (C) 1999, 2002-2003, 2005, 2007, 2010-2016 Free Software
+    Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ #ifndef _PRINTF_PARSE_H
+diff --git a/glib/gnulib/vasnprintf.c b/glib/gnulib/vasnprintf.c
+index 9933d16..38eab62 100644
+--- a/glib/gnulib/vasnprintf.c
++++ b/glib/gnulib/vasnprintf.c
+@@ -1,17 +1,17 @@
+ /* vsprintf with automatic memory allocation.
+-   Copyright (C) 1999, 2002-2015 Free Software Foundation, Inc.
++   Copyright (C) 1999, 2002-2016 Free Software Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ /* This file can be parametrized with the following macros:
+diff --git a/glib/gnulib/vasnprintf.h b/glib/gnulib/vasnprintf.h
+index ec19d70..d2bcfb5 100644
+--- a/glib/gnulib/vasnprintf.h
++++ b/glib/gnulib/vasnprintf.h
+@@ -1,17 +1,17 @@
+ /* vsprintf with automatic memory allocation.
+-   Copyright (C) 2002-2004, 2007-2015 Free Software Foundation, Inc.
++   Copyright (C) 2002-2004, 2007-2016 Free Software Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License along
++   You should have received a copy of the GNU Lesser General Public License along
+    with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ #ifndef _VASNPRINTF_H
+diff --git a/glib/gnulib/verify.h b/glib/gnulib/verify.h
+index 60eba49..267de29 100644
+--- a/glib/gnulib/verify.h
++++ b/glib/gnulib/verify.h
+@@ -1,18 +1,18 @@
+ /* Compile-time assert-like macros.
+ 
+-   Copyright (C) 2005-2006, 2009-2015 Free Software Foundation, Inc.
++   Copyright (C) 2005-2006, 2009-2016 Free Software Foundation, Inc.
+ 
+    This program is free software: you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 3 of the License, or
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1 of the License, or
+    (at your option) any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License
++   You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+ 
+ /* Written by Paul Eggert, Bruno Haible, and Jim Meyering.  */
+diff --git a/glib/gnulib/xsize.h b/glib/gnulib/xsize.h
+index 244a7b1..a6f65bc 100644
+--- a/glib/gnulib/xsize.h
++++ b/glib/gnulib/xsize.h
+@@ -1,18 +1,18 @@
+ /* xsize.h -- Checked size_t computations.
+ 
+-   Copyright (C) 2003, 2008-2015 Free Software Foundation, Inc.
++   Copyright (C) 2003, 2008-2016 Free Software Foundation, Inc.
+ 
+    This program is free software; you can redistribute it and/or modify
+-   it under the terms of the GNU General Public License as published by
+-   the Free Software Foundation; either version 2, or (at your option)
++   it under the terms of the GNU Lesser General Public License as published by
++   the Free Software Foundation; either version 2.1, or (at your option)
+    any later version.
+ 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-   GNU General Public License for more details.
++   GNU Lesser General Public License for more details.
+ 
+-   You should have received a copy of the GNU General Public License
++   You should have received a copy of the GNU Lesser General Public License
+    along with this program; if not, see <http://www.gnu.org/licenses/>.  */
+ 
+ #ifndef _XSIZE_H
+@@ -55,6 +55,9 @@
+ 
+ /* Sum of two sizes, with overflow check.  */
+ static inline size_t
++#if __GNUC__ >= 3
++__attribute__ ((__pure__))
++#endif
+ xsum (size_t size1, size_t size2)
+ {
+   size_t sum = size1 + size2;
+@@ -63,6 +66,9 @@ xsum (size_t size1, size_t size2)
+ 
+ /* Sum of three sizes, with overflow check.  */
+ static inline size_t
++#if __GNUC__ >= 3
++__attribute__ ((__pure__))
++#endif
+ xsum3 (size_t size1, size_t size2, size_t size3)
+ {
+   return xsum (xsum (size1, size2), size3);
+@@ -70,6 +76,9 @@ xsum3 (size_t size1, size_t size2, size_t size3)
+ 
+ /* Sum of four sizes, with overflow check.  */
+ static inline size_t
++#if __GNUC__ >= 3
++__attribute__ ((__pure__))
++#endif
+ xsum4 (size_t size1, size_t size2, size_t size3, size_t size4)
+ {
+   return xsum (xsum (xsum (size1, size2), size3), size4);
+@@ -77,6 +86,9 @@ xsum4 (size_t size1, size_t size2, size_t size3, size_t size4)
+ 
+ /* Maximum of two sizes, with overflow check.  */
+ static inline size_t
++#if __GNUC__ >= 3
++__attribute__ ((__pure__))
++#endif
+ xmax (size_t size1, size_t size2)
+ {
+   /* No explicit check is needed here, because for any n:
+-- 
+1.9.1
+

@@ -1,0 +1,16 @@
+0001-Add-U-Boot-2016_03.patch -p1
+0002-FIX-for-NAND-timing.patch -p1
+0001-FIX-patches-from-more-recent-U-Boot-to-fix-Cache-pro.patch -p1
+0001-Add-NAND-support-for-device-IS34ML01G081-1GBit-and-I.patch -p1
+0001-Added-Command-to-Get-FitImage-IVT-Offset.patch -p1
+0001-Fixed-Booting-of-FitImages.patch -p1
+0001-Fix-U-Boot-Size-for-Secure-Boot-in-Conjunction-with-.patch -p1
+0002-do-not-permit-terminal-abort-if-device-is-secure.patch -p1
+0003-do-reset-on-non-recoverable-issue.patch -p1
+0001-Add-Boot-Count-Reset.patch -p1
+0001-Boot-Count-Clear-Power-Glitch-Event.patch -p1
+0001-Add-command-to-get-hw-variant.patch -p1
+0001-Support-environment-variable-whitelisting.patch -p1
+0001-Add-Test-Fuse-Command.patch -p1
+0001-tools-env-bug-config-structs-must-be-defined-in-tool.patch -p1
+0001-tools-env-fix-config-file-loading-in-env-library.patch -p1

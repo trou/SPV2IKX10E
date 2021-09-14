@@ -1,0 +1,3 @@
+relative-libdir.patch -p0
+attr-Missing-configure.ac.patch -p1
+dont-use-decl-macros.patch -p1

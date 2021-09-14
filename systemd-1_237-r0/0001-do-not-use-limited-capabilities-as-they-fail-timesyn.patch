@@ -1,0 +1,28 @@
+From ae6556f3646afb450854b3028f77cdfb64a52a28 Mon Sep 17 00:00:00 2001
+From: Your Name <you@example.com>
+Date: Thu, 5 Sep 2019 19:25:54 +0000
+Subject: [PATCH] do not use limited capabilities as they fail timesyncd
+
+---
+ units/systemd-timesyncd.service.in | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/units/systemd-timesyncd.service.in b/units/systemd-timesyncd.service.in
+index d3bc4e9..3b84d4b 100644
+--- a/units/systemd-timesyncd.service.in
++++ b/units/systemd-timesyncd.service.in
+@@ -26,8 +26,9 @@ ExecStart=!!@rootlibexecdir@/systemd-timesyncd
+ WatchdogSec=3min
+ User=systemd-timesync
+ DynamicUser=yes
+-CapabilityBoundingSet=CAP_SYS_TIME
+-AmbientCapabilities=CAP_SYS_TIME
++#Limiting this units capabilities doesn't work properly - at least with Kernel Version 4.1.x
++#CapabilityBoundingSet=CAP_SYS_TIME
++#AmbientCapabilities=CAP_SYS_TIME
+ PrivateDevices=yes
+ ProtectHome=yes
+ ProtectControlGroups=yes
+-- 
+2.7.4
+

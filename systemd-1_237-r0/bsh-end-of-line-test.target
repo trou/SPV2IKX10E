@@ -1,0 +1,6 @@
+[Unit]
+Description=BSH End-of-Line Test Target
+Requires=basic.target
+After=basic.target
+Wants=getty.target
+AllowIsolate=yes

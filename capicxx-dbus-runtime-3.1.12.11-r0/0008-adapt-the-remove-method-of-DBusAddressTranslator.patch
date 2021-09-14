@@ -1,0 +1,61 @@
+From c94daaffd77c06b516aad5304e8bdaf904d1b2b7 Mon Sep 17 00:00:00 2001
+Message-Id: <c94daaffd77c06b516aad5304e8bdaf904d1b2b7.1583424168.git.thorsten.klein@bshg.com>
+From: "Klein, Thorsten (BSH)" <thorsten.klein@bshg.com>
+Date: Thu, 5 Mar 2020 17:02:43 +0100
+Subject: [PATCH] adapt the remove-method of DBusAddressTranslator
+
+possibility to force deletion of an address, even if it is persistent
+(e.g. has been added via insert-method)
+---
+ include/CommonAPI/DBus/DBusAddressTranslator.hpp |  2 +-
+ src/CommonAPI/DBus/DBusAddressTranslator.cpp     | 16 ++++++++++++----
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/include/CommonAPI/DBus/DBusAddressTranslator.hpp b/include/CommonAPI/DBus/DBusAddressTranslator.hpp
+index bad7b19..2dfc425 100644
+--- a/include/CommonAPI/DBus/DBusAddressTranslator.hpp
++++ b/include/CommonAPI/DBus/DBusAddressTranslator.hpp
+@@ -47,7 +47,7 @@ public:
+      */
+     COMMONAPI_EXPORT bool isOrgFreedesktopDBusPeerMapped() const;
+ 
+-    COMMONAPI_EXPORT void remove(const CommonAPI::Address &_address);
++    COMMONAPI_EXPORT void remove(const CommonAPI::Address &_address, bool remove_persistent = false);
+ 
+ private:
+     COMMONAPI_EXPORT bool readConfiguration();
+diff --git a/src/CommonAPI/DBus/DBusAddressTranslator.cpp b/src/CommonAPI/DBus/DBusAddressTranslator.cpp
+index b7523bb..a757b79 100644
+--- a/src/CommonAPI/DBus/DBusAddressTranslator.cpp
++++ b/src/CommonAPI/DBus/DBusAddressTranslator.cpp
+@@ -489,15 +489,23 @@ bool DBusAddressTranslator::isValidVersion(const std::string& _version) const {
+     return true;
+ }
+ 
+-void DBusAddressTranslator::remove(const CommonAPI::Address &_address) {
++void DBusAddressTranslator::remove(const CommonAPI::Address &_address, bool remove_persistent) {
+     std::lock_guard<std::mutex> itsLock(mutex_);
+ 
+     DBusAddress dbusAddress;
+ 
+-    // don't remove persisent addresses
+     auto persistent_it = persistentAddresses_.find(_address);
+-    if(persistent_it != persistentAddresses_.end()) {
+-        return;
++    if(persistent_it != persistentAddresses_.end())
++    {
++        if(remove_persistent)
++        {
++            persistentAddresses_.erase(persistent_it->first);
++        }
++        else
++        {
++            // don't remove persisent addresses, so return here
++            return;
++        }
+     }
+ 
+     auto forwards_it = forwards_.find(_address);
+-- 
+2.7.4
+

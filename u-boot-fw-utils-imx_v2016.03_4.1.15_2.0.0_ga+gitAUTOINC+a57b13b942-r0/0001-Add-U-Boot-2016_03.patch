@@ -1,0 +1,36 @@
+From 031d7e8b33e05afa6b1d0958e879fdd2882fab47 Mon Sep 17 00:00:00 2001
+From: Michael Bode <michael.bode@bshg.com>
+Date: Thu, 6 Jul 2017 08:45:28 +0200
+Subject: [PATCH] Add-U-Boot
+
+---
+ arch/arm/Kconfig | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+index 6e5544f..477931c 100644
+--- a/arch/arm/Kconfig
++++ b/arch/arm/Kconfig
+@@ -683,6 +683,11 @@ config TARGET_H2200
+ 	bool "Support h2200"
+ 	select CPU_PXA
+ 
++config TARGET_MX6BSHSMBCPU
++       bool "Support mx6bshsmbcpu"
++       select CPU_V7
++       select SUPPORT_SPL
++
+ config TARGET_COLIBRI_PXA270
+ 	bool "Support colibri_pxa270"
+ 	select CPU_PXA
+@@ -856,6 +861,7 @@ source "board/technologic/ts4800/Kconfig"
+ source "board/vscom/baltos/Kconfig"
+ source "board/woodburn/Kconfig"
+ source "board/work-microwave/work_92105/Kconfig"
++source "board/bsh/mx6bshsmbcpu/Kconfig"
+ 
+ source "arch/arm/Kconfig.debug"
+ 
+-- 
+1.9.1
+
